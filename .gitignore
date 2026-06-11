@@ -1,0 +1,17 @@
+# dependencies
+/node_modules
+
+# next.js build output
+/.next
+/out
+
+# misc
+.DS_Store
+*.log
+npm-debug.log*
+
+# local env files
+.env*.local
+
+# local editor / tooling config
+/.claude
