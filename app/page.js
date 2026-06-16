@@ -44,6 +44,49 @@ const SUPPORT_CARDS = [
   "Walk her to the bathroom and remind her to empty her bladder.",
 ];
 
+// Calming affirmations that slowly rotate while a contraction is in progress.
+const AFFIRMATIONS = [
+  "Your body was made for this",
+  "Your body knows exactly what to do",
+  "You were designed for this moment",
+  "You can trust what your body is doing",
+  "You don't have to fight this — just flow with it",
+  "You are stronger than you know",
+  "Every contraction is bringing your baby closer to you",
+  "You have done hard things before and you are doing one right now",
+  "You are more powerful than you feel in this moment",
+  "Your body is working perfectly right now",
+  "Breathe in calm, breathe out tension",
+  "You only have to get through this one contraction",
+  "Just this breath, just this moment, just this wave",
+  "With every exhale you soften and open",
+  "Your breath is carrying you through",
+  "You and your baby are doing this together",
+  "Your baby is coming to you with every surge",
+  "You are opening to welcome your baby earthside",
+  "You are safe and your baby is safe",
+  "Your baby knows your voice, your heartbeat, your love",
+  "This will pass — it always passes",
+  "You are surrounded by people who love you",
+  "Your body is not broken, it is doing exactly what it should",
+  "You are allowed to feel this and keep going anyway",
+  "You are exactly where you are supposed to be",
+  "This is the most important and powerful work you will ever do",
+];
+
+// How long each affirmation stays on screen before the next one (milliseconds).
+const AFFIRMATION_INTERVAL_MS = 9000;
+
+// Pick a random affirmation that is not the one already showing.
+function nextAffirmation(prevIndex) {
+  if (AFFIRMATIONS.length <= 1) return 0;
+  let next = prevIndex;
+  while (next === prevIndex) {
+    next = Math.floor(Math.random() * AFFIRMATIONS.length);
+  }
+  return next;
+}
+
 // "MM:SS" for the live timer (keeps the existing look).
 function formatClock(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -70,6 +113,7 @@ export default function Home() {
   const [cardShown, setCardShown] = useState(0); // how many times current card has shown
   const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
+  const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
   const [hydrated, setHydrated] = useState(false); // has saved data loaded yet?
 
   const intervalRef = useRef(null); // holds the running 1-second ticker
@@ -131,6 +175,17 @@ export default function Home() {
     };
   }, []);
 
+  // While a contraction is in progress, slowly rotate the affirmation on its own.
+  useEffect(() => {
+    if (phase !== ACTIVE) return;
+    // Fresh affirmation at the start of each contraction.
+    setAffirmationIndex((prev) => nextAffirmation(prev));
+    const id = setInterval(() => {
+      setAffirmationIndex((prev) => nextAffirmation(prev));
+    }, AFFIRMATION_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [phase]);
+
   function clearHistory() {
     setHistory([]); // also empties the saved copy via the save effect
     setConfirmingDelete(false);
@@ -188,6 +243,12 @@ export default function Home() {
       <section style={styles.stage}>
         {/* Top area changes with the phase */}
         {isActive && <div style={styles.timer}>{formatClock(elapsed)}</div>}
+
+        {isActive && (
+          <p key={affirmationIndex} style={styles.affirmation}>
+            {AFFIRMATIONS[affirmationIndex]}
+          </p>
+        )}
 
         {phase === REST && lastContraction && (
           <p style={styles.duration}>
@@ -304,6 +365,15 @@ const styles = {
     fontVariantNumeric: "tabular-nums",
     color: "#5a4650",
     lineHeight: 1,
+  },
+  affirmation: {
+    margin: 0,
+    maxWidth: "20rem",
+    fontSize: "1.5rem",
+    fontWeight: 500,
+    lineHeight: 1.45,
+    color: "#7a5e68",
+    animation: "affirmationFade 1s ease",
   },
   button: {
     width: "min(70vw, 260px)",

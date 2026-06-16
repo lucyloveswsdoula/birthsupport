@@ -5,3 +5,13 @@ body {
   height: 100%;
   background: #fdeef1;
 }
+
+/* Gentle fade as each affirmation appears during a contraction. */
+@keyframes affirmationFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
