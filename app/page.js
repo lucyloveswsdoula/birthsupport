@@ -59,11 +59,18 @@ function formatDuration(totalSeconds) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+// Keep the same card for "about 2-4 contractions" -> a random 2, 3, or 4.
+function randomSpan() {
+  return 2 + Math.floor(Math.random() * 3);
+}
+
 export default function Home() {
   const [phase, setPhase] = useState(READY);
   const [elapsed, setElapsed] = useState(0); // seconds in the current contraction
   const [history, setHistory] = useState([]); // newest first
-  const [nextCardIndex, setNextCardIndex] = useState(0); // which card comes next
+  const [cardIndex, setCardIndex] = useState(0); // which card is current
+  const [cardSpan, setCardSpan] = useState(3); // how many contractions this card lasts (~2-4)
+  const [cardShown, setCardShown] = useState(0); // how many times current card has shown
   const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
   const [hydrated, setHydrated] = useState(false); // has saved data loaded yet?
 
@@ -78,9 +85,21 @@ export default function Home() {
         const saved = JSON.parse(raw);
         if (Array.isArray(saved)) setHistory(saved);
       }
-      const savedIndex = Number(localStorage.getItem(CARD_KEY));
-      if (Number.isInteger(savedIndex) && savedIndex >= 0 && savedIndex < SUPPORT_CARDS.length) {
-        setNextCardIndex(savedIndex);
+      const rawCard = localStorage.getItem(CARD_KEY);
+      const savedCard = rawCard ? JSON.parse(rawCard) : null;
+      if (
+        savedCard &&
+        typeof savedCard === "object" &&
+        Number.isInteger(savedCard.index) &&
+        savedCard.index >= 0 &&
+        savedCard.index < SUPPORT_CARDS.length
+      ) {
+        setCardIndex(savedCard.index);
+        if (Number.isInteger(savedCard.span)) setCardSpan(savedCard.span);
+        if (Number.isInteger(savedCard.shown)) setCardShown(savedCard.shown);
+      } else {
+        // First time on this phone: pick how long the first card lasts.
+        setCardSpan(randomSpan());
       }
     } catch {
       // If anything is off, just start fresh.
@@ -98,15 +117,18 @@ export default function Home() {
     }
   }, [history, hydrated]);
 
-  // Save which card comes next so the cycle survives a refresh.
+  // Save the card cycle (which card, how long it lasts, how far in) so it survives a refresh.
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(CARD_KEY, String(nextCardIndex));
+      localStorage.setItem(
+        CARD_KEY,
+        JSON.stringify({ index: cardIndex, span: cardSpan, shown: cardShown })
+      );
     } catch {
       // Saving is best-effort; ignore failures.
     }
-  }, [nextCardIndex, hydrated]);
+  }, [cardIndex, cardSpan, cardShown, hydrated]);
 
   // Safety net: if the page ever unmounts mid-contraction, stop the ticker.
   useEffect(() => {
@@ -141,9 +163,17 @@ export default function Home() {
       return [{ startTime, durationSec, gapSec }, ...prev];
     });
 
-    // Show the next partner support card, then advance the cycle.
-    setCurrentCard(SUPPORT_CARDS[nextCardIndex]);
-    setNextCardIndex((nextCardIndex + 1) % SUPPORT_CARDS.length);
+    // Show the current partner support card. Keep it for ~2-4 contractions,
+    // then move on to the next card and pick a fresh span.
+    setCurrentCard(SUPPORT_CARDS[cardIndex]);
+    const shownNow = cardShown + 1;
+    if (shownNow >= cardSpan) {
+      setCardIndex((cardIndex + 1) % SUPPORT_CARDS.length);
+      setCardSpan(randomSpan());
+      setCardShown(0);
+    } else {
+      setCardShown(shownNow);
+    }
 
     setPhase(REST);
   }
