@@ -72,6 +72,7 @@ export default function Home() {
   const [cardSpan, setCardSpan] = useState(3); // how many contractions this card lasts (~2-4)
   const [cardShown, setCardShown] = useState(0); // how many times current card has shown
   const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
+  const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
   const [hydrated, setHydrated] = useState(false); // has saved data loaded yet?
 
   const intervalRef = useRef(null); // holds the running 1-second ticker
@@ -137,7 +138,13 @@ export default function Home() {
     };
   }, []);
 
+  function clearHistory() {
+    setHistory([]); // also empties the saved copy via the save effect
+    setConfirmingDelete(false);
+  }
+
   function startContraction() {
+    setConfirmingDelete(false);
     setElapsed(0);
     startRef.current = Date.now();
     intervalRef.current = setInterval(() => {
@@ -232,6 +239,38 @@ export default function Home() {
               </li>
             ))}
           </ul>
+
+          {confirmingDelete ? (
+            <div style={styles.confirmBox}>
+              <p style={styles.confirmText}>
+                Are you sure you want to delete all contraction history?
+              </p>
+              <div style={styles.confirmRow}>
+                <button
+                  type="button"
+                  onClick={clearHistory}
+                  style={styles.confirmDelete}
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(false)}
+                  style={styles.confirmCancel}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              style={styles.deleteButton}
+            >
+              Delete History
+            </button>
+          )}
         </section>
       )}
     </main>
@@ -358,5 +397,59 @@ const styles = {
     fontSize: "1.15rem",
     color: "#6b5560",
     textAlign: "center",
+  },
+  deleteButton: {
+    display: "block",
+    margin: "1.25rem auto 0 auto",
+    padding: "0.65rem 1.25rem",
+    background: "transparent",
+    border: "1px solid #e3aeba",
+    borderRadius: "999px",
+    color: "#a98591",
+    fontSize: "1rem",
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  confirmBox: {
+    marginTop: "1.25rem",
+    padding: "1rem",
+    border: "1px solid #e3aeba",
+    borderRadius: "16px",
+    background: "rgba(255, 255, 255, 0.6)",
+  },
+  confirmText: {
+    margin: "0 0 0.9rem 0",
+    fontSize: "1.05rem",
+    color: "#6b5560",
+    lineHeight: 1.4,
+  },
+  confirmRow: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "0.75rem",
+  },
+  confirmDelete: {
+    padding: "0.7rem 1.4rem",
+    background: "#c76b82",
+    border: "none",
+    borderRadius: "999px",
+    color: "#ffffff",
+    fontSize: "1rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  confirmCancel: {
+    padding: "0.7rem 1.4rem",
+    background: "transparent",
+    border: "1px solid #cda9b3",
+    borderRadius: "999px",
+    color: "#6b5560",
+    fontSize: "1rem",
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
   },
 };
