@@ -59,17 +59,14 @@ function formatDuration(totalSeconds) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-// Keep the same card for "about 2-4 contractions" -> a random 2, 3, or 4.
-function randomSpan() {
-  return 2 + Math.floor(Math.random() * 3);
-}
+// How many contractions each partner support card stays before switching.
+const CARD_SPAN = 2;
 
 export default function Home() {
   const [phase, setPhase] = useState(READY);
   const [elapsed, setElapsed] = useState(0); // seconds in the current contraction
   const [history, setHistory] = useState([]); // newest first
   const [cardIndex, setCardIndex] = useState(0); // which card is current
-  const [cardSpan, setCardSpan] = useState(3); // how many contractions this card lasts (~2-4)
   const [cardShown, setCardShown] = useState(0); // how many times current card has shown
   const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
@@ -96,11 +93,7 @@ export default function Home() {
         savedCard.index < SUPPORT_CARDS.length
       ) {
         setCardIndex(savedCard.index);
-        if (Number.isInteger(savedCard.span)) setCardSpan(savedCard.span);
         if (Number.isInteger(savedCard.shown)) setCardShown(savedCard.shown);
-      } else {
-        // First time on this phone: pick how long the first card lasts.
-        setCardSpan(randomSpan());
       }
     } catch {
       // If anything is off, just start fresh.
@@ -124,12 +117,12 @@ export default function Home() {
     try {
       localStorage.setItem(
         CARD_KEY,
-        JSON.stringify({ index: cardIndex, span: cardSpan, shown: cardShown })
+        JSON.stringify({ index: cardIndex, shown: cardShown })
       );
     } catch {
       // Saving is best-effort; ignore failures.
     }
-  }, [cardIndex, cardSpan, cardShown, hydrated]);
+  }, [cardIndex, cardShown, hydrated]);
 
   // Safety net: if the page ever unmounts mid-contraction, stop the ticker.
   useEffect(() => {
@@ -170,13 +163,12 @@ export default function Home() {
       return [{ startTime, durationSec, gapSec }, ...prev];
     });
 
-    // Show the current partner support card. Keep it for ~2-4 contractions,
-    // then move on to the next card and pick a fresh span.
+    // Show the current partner support card. Keep it for CARD_SPAN contractions,
+    // then move on to the next card.
     setCurrentCard(SUPPORT_CARDS[cardIndex]);
     const shownNow = cardShown + 1;
-    if (shownNow >= cardSpan) {
+    if (shownNow >= CARD_SPAN) {
       setCardIndex((cardIndex + 1) % SUPPORT_CARDS.length);
-      setCardSpan(randomSpan());
       setCardShown(0);
     } else {
       setCardShown(shownNow);
