@@ -77,8 +77,8 @@ const AFFIRMATIONS = [
 // How long each affirmation stays on screen before the next one (milliseconds).
 const AFFIRMATION_INTERVAL_MS = 9000;
 
-// How many recent contractions to show in the history list.
-const HISTORY_SHOWN = 5;
+// How many recent contractions to show before the user expands the list.
+const HISTORY_COLLAPSED = 3;
 
 // Pick a random affirmation that is not the one already showing.
 function nextAffirmation(prevIndex) {
@@ -160,6 +160,7 @@ export default function Home() {
   const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
   const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
+  const [historyExpanded, setHistoryExpanded] = useState(false); // show all history rows?
   const [activeAlert, setActiveAlert] = useState(null); // null | "stage1" | "stage2"
   const [stage1Shown, setStage1Shown] = useState(false); // 4-1-1 nudge already shown?
   const [stage2Shown, setStage2Shown] = useState(false); // 3-1-1 nudge already shown?
@@ -384,14 +385,42 @@ export default function Home() {
         <section style={styles.historyWrap}>
           <h2 style={styles.historyTitle}>History</h2>
           <ul style={styles.historyList}>
-            {history.slice(0, HISTORY_SHOWN).map((c) => (
-              <li key={c.startTime} style={styles.historyRow}>
-                {`Lasted ${formatDuration(c.durationSec)}${
-                  c.gapSec != null ? ` · ${formatDuration(c.gapSec)} apart` : ""
-                }`}
-              </li>
-            ))}
+            {(historyExpanded ? history : history.slice(0, HISTORY_COLLAPSED)).map(
+              (c) => (
+                <li key={c.startTime} style={styles.historyRow}>
+                  {`Lasted ${formatDuration(c.durationSec)}${
+                    c.gapSec != null ? ` · ${formatDuration(c.gapSec)} apart` : ""
+                  }`}
+                </li>
+              )
+            )}
           </ul>
+
+          {history.length > HISTORY_COLLAPSED && (
+            <button
+              type="button"
+              onClick={() => setHistoryExpanded((v) => !v)}
+              style={styles.expandButton}
+              aria-label={historyExpanded ? "Show fewer contractions" : "Show all contractions"}
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#a98591"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{
+                  transform: historyExpanded ? "rotate(180deg)" : "none",
+                  transition: "transform 0.2s ease",
+                }}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+          )}
 
           {confirmingDelete ? (
             <div style={styles.confirmBox}>
@@ -590,6 +619,17 @@ const styles = {
     fontSize: "1rem",
     fontWeight: 600,
     cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  expandButton: {
+    display: "block",
+    margin: "0.5rem auto 0 auto",
+    padding: "0.35rem 1rem",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    lineHeight: 0,
     WebkitTapHighlightColor: "transparent",
     touchAction: "manipulation",
   },
