@@ -77,6 +77,9 @@ const AFFIRMATIONS = [
 // How long each affirmation stays on screen before the next one (milliseconds).
 const AFFIRMATION_INTERVAL_MS = 9000;
 
+// How many recent contractions to show in the history list.
+const HISTORY_SHOWN = 5;
+
 // Pick a random affirmation that is not the one already showing.
 function nextAffirmation(prevIndex) {
   if (AFFIRMATIONS.length <= 1) return 0;
@@ -284,7 +287,7 @@ export default function Home() {
         <section style={styles.historyWrap}>
           <h2 style={styles.historyTitle}>History</h2>
           <ul style={styles.historyList}>
-            {history.map((c) => (
+            {history.slice(0, HISTORY_SHOWN).map((c) => (
               <li key={c.startTime} style={styles.historyRow}>
                 {`Lasted ${formatDuration(c.durationSec)}${
                   c.gapSec != null ? ` · ${formatDuration(c.gapSec)} apart` : ""
