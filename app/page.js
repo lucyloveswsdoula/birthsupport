@@ -7,8 +7,42 @@ const READY = "ready";
 const ACTIVE = "active";
 const REST = "rest";
 
-// Where the history is saved on the phone (browser local storage).
+// Where things are saved on the phone (browser local storage).
 const STORAGE_KEY = "birthsupport-history";
+const CARD_KEY = "birthsupport-card-index";
+
+// Partner support cards, shown one at a time after each contraction, in order.
+const SUPPORT_CARDS = [
+  "Press firmly on her lower back during the next contraction.",
+  "Squeeze her hips inward during a contraction to ease the pressure.",
+  "Rub her shoulders slowly and gently.",
+  "Hold her hand and breathe with her.",
+  "Wipe her forehead with a cool, damp cloth.",
+  "Massage her feet or lower legs.",
+  "Offer her a sip of water or her favorite drink.",
+  "Offer her a small bite to eat if she wants one.",
+  "Help her change position — try standing and swaying.",
+  "Let her lean on you and sway side to side together.",
+  "Help her onto hands and knees to ease back pressure.",
+  "Bring the birth ball over for her to rock on.",
+  "Walk slowly together, arm in arm.",
+  "Run a warm shower or bath if she'd like one.",
+  "Breathe slowly with her and let her follow your breath.",
+  "Gently remind her to drop her shoulders.",
+  "Remind her to soften her jaw and unclench her hands.",
+  "Tell her she's doing beautifully.",
+  "Remind her each contraction brings her closer to baby.",
+  "Tell her you're proud of her and you're not going anywhere.",
+  "Remind her she is strong and her body knows what to do.",
+  "Dim the lights to help her relax.",
+  "Put on her calming playlist.",
+  "Ask if she'd like the room warmer or cooler, and adjust it.",
+  "Make quiet eye contact and stay close.",
+  "Keep your voice soft and slow to match her calm.",
+  "Be still beside her — sometimes presence is enough.",
+  "Time the next contraction so she doesn't have to think about it.",
+  "Walk her to the bathroom and remind her to empty her bladder.",
+];
 
 // "MM:SS" for the live timer (keeps the existing look).
 function formatClock(totalSeconds) {
@@ -29,12 +63,14 @@ export default function Home() {
   const [phase, setPhase] = useState(READY);
   const [elapsed, setElapsed] = useState(0); // seconds in the current contraction
   const [history, setHistory] = useState([]); // newest first
-  const [hydrated, setHydrated] = useState(false); // has saved history loaded yet?
+  const [nextCardIndex, setNextCardIndex] = useState(0); // which card comes next
+  const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
+  const [hydrated, setHydrated] = useState(false); // has saved data loaded yet?
 
   const intervalRef = useRef(null); // holds the running 1-second ticker
   const startRef = useRef(null); // when the current contraction began
 
-  // When the app opens, load any history saved on this phone.
+  // When the app opens, load any saved data from this phone.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -42,8 +78,12 @@ export default function Home() {
         const saved = JSON.parse(raw);
         if (Array.isArray(saved)) setHistory(saved);
       }
+      const savedIndex = Number(localStorage.getItem(CARD_KEY));
+      if (Number.isInteger(savedIndex) && savedIndex >= 0 && savedIndex < SUPPORT_CARDS.length) {
+        setNextCardIndex(savedIndex);
+      }
     } catch {
-      // If anything is off, just start with an empty history.
+      // If anything is off, just start fresh.
     }
     setHydrated(true);
   }, []);
@@ -57,6 +97,16 @@ export default function Home() {
       // Saving is best-effort; ignore failures.
     }
   }, [history, hydrated]);
+
+  // Save which card comes next so the cycle survives a refresh.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(CARD_KEY, String(nextCardIndex));
+    } catch {
+      // Saving is best-effort; ignore failures.
+    }
+  }, [nextCardIndex, hydrated]);
 
   // Safety net: if the page ever unmounts mid-contraction, stop the ticker.
   useEffect(() => {
@@ -91,6 +141,10 @@ export default function Home() {
       return [{ startTime, durationSec, gapSec }, ...prev];
     });
 
+    // Show the next partner support card, then advance the cycle.
+    setCurrentCard(SUPPORT_CARDS[nextCardIndex]);
+    setNextCardIndex((nextCardIndex + 1) % SUPPORT_CARDS.length);
+
     setPhase(REST);
   }
 
@@ -112,9 +166,10 @@ export default function Home() {
           </p>
         )}
 
-        {phase === REST && (
+        {phase === REST && currentCard && (
           <div style={styles.card}>
-            <p style={styles.cardText}>Rest. A support card will appear here.</p>
+            <p style={styles.cardLabel}>For your partner</p>
+            <p style={styles.cardAction}>{currentCard}</p>
           </div>
         )}
 
@@ -213,19 +268,30 @@ const styles = {
     width: "min(85vw, 320px)",
     minHeight: "100px",
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
+    gap: "0.6rem",
     padding: "1.25rem",
     boxSizing: "border-box",
     border: "2px dashed #e3aeba",
     borderRadius: "16px",
     background: "rgba(255, 255, 255, 0.4)",
   },
-  cardText: {
+  cardLabel: {
     margin: 0,
-    fontSize: "1rem",
-    color: "#b08c97",
-    fontStyle: "italic",
+    fontSize: "0.85rem",
+    fontWeight: 600,
+    letterSpacing: "1px",
+    textTransform: "uppercase",
+    color: "#c99aa6",
+  },
+  cardAction: {
+    margin: 0,
+    fontSize: "1.35rem",
+    fontWeight: 500,
+    lineHeight: 1.4,
+    color: "#6b5560",
   },
   duration: {
     margin: 0,
