@@ -108,6 +108,49 @@ function formatDuration(totalSeconds) {
 // How many contractions each partner support card stays before switching.
 const CARD_SPAN = 2;
 
+// Two-stage gentle pattern alerts (4-1-1 "get ready", then 3-1-1 "check in").
+const ALERTS_KEY = "birthsupport-alerts";
+const ALERT_MIN_DURATION = 45; // seconds — "about a minute or longer"
+const ALERT_MIN_SPAN = 50 * 60; // seconds — pattern has held "about an hour"
+const GAP_411 = 270; // 4.5 min or closer — "about 4 minutes apart"
+const GAP_311 = 210; // 3.5 min or closer — "about 3 minutes apart"
+
+const ALERT_MESSAGES = {
+  stage1: {
+    headline: "Get ready!",
+    body:
+      "Your contractions are settling into a steady pattern — coming about every 4 minutes and lasting around a minute. Gather your things and let your support people know.",
+  },
+  stage2: {
+    headline: "Call your doctor or midwife!",
+    body:
+      "Your contractions have settled into a closer, steady pattern — about every 3 minutes and lasting around a minute, for about an hour. Let them know where things are, and follow the plan you've made with them.",
+  },
+};
+
+// Does the recent run of contractions hold a steady pattern within maxGapSec?
+// history is newest-first; each entry is { startTime, durationSec, gapSec }.
+function patternHolds(history, maxGapSec) {
+  if (!history.length) return false;
+  const newest = history[0];
+  if (newest.durationSec < ALERT_MIN_DURATION) return false;
+
+  // Walk backward collecting consecutive contractions that fit the pattern.
+  const run = [newest];
+  for (let i = 1; i < history.length; i++) {
+    const c = history[i];
+    const linkingGap = history[i - 1].gapSec; // gap from c to the newer one
+    if (c.durationSec >= ALERT_MIN_DURATION && linkingGap != null && linkingGap <= maxGapSec) {
+      run.push(c);
+    } else {
+      break;
+    }
+  }
+
+  const spanSec = (run[0].startTime - run[run.length - 1].startTime) / 1000;
+  return spanSec >= ALERT_MIN_SPAN;
+}
+
 export default function Home() {
   const [phase, setPhase] = useState(READY);
   const [elapsed, setElapsed] = useState(0); // seconds in the current contraction
@@ -117,6 +160,9 @@ export default function Home() {
   const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
   const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
+  const [activeAlert, setActiveAlert] = useState(null); // null | "stage1" | "stage2"
+  const [stage1Shown, setStage1Shown] = useState(false); // 4-1-1 nudge already shown?
+  const [stage2Shown, setStage2Shown] = useState(false); // 3-1-1 nudge already shown?
   const [hydrated, setHydrated] = useState(false); // has saved data loaded yet?
 
   const intervalRef = useRef(null); // holds the running 1-second ticker
@@ -141,6 +187,15 @@ export default function Home() {
       ) {
         setCardIndex(savedCard.index);
         if (Number.isInteger(savedCard.shown)) setCardShown(savedCard.shown);
+      }
+      const rawAlerts = localStorage.getItem(ALERTS_KEY);
+      const savedAlerts = rawAlerts ? JSON.parse(rawAlerts) : null;
+      if (savedAlerts && typeof savedAlerts === "object") {
+        if (savedAlerts.active === "stage1" || savedAlerts.active === "stage2") {
+          setActiveAlert(savedAlerts.active);
+        }
+        setStage1Shown(!!savedAlerts.s1);
+        setStage2Shown(!!savedAlerts.s2);
       }
     } catch {
       // If anything is off, just start fresh.
@@ -171,6 +226,34 @@ export default function Home() {
     }
   }, [cardIndex, cardShown, hydrated]);
 
+  // Save the alert state (which is showing, which have already shown) so it survives a refresh.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(
+        ALERTS_KEY,
+        JSON.stringify({ active: activeAlert, s1: stage1Shown, s2: stage2Shown })
+      );
+    } catch {
+      // Saving is best-effort; ignore failures.
+    }
+  }, [activeAlert, stage1Shown, stage2Shown, hydrated]);
+
+  // Re-check the pattern whenever a new contraction is logged (and once on load).
+  // Each nudge shows only once; the 3-1-1 nudge can still appear after the 4-1-1 one.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (patternHolds(history, GAP_311) && !stage2Shown) {
+      setActiveAlert("stage2");
+      setStage1Shown(true); // we've moved past the "get ready" point
+      setStage2Shown(true);
+    } else if (patternHolds(history, GAP_411) && !stage1Shown) {
+      setActiveAlert("stage1");
+      setStage1Shown(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history, hydrated]);
+
   // Safety net: if the page ever unmounts mid-contraction, stop the ticker.
   useEffect(() => {
     return () => {
@@ -192,6 +275,10 @@ export default function Home() {
   function clearHistory() {
     setHistory([]); // also empties the saved copy via the save effect
     setConfirmingDelete(false);
+  }
+
+  function dismissAlert() {
+    setActiveAlert(null);
   }
 
   function startContraction() {
@@ -242,6 +329,16 @@ export default function Home() {
   return (
     <main style={styles.main}>
       <header style={styles.title}>Birth Support</header>
+
+      {activeAlert && (
+        <div style={styles.alertBox} role="status">
+          <p style={styles.alertHeadline}>{ALERT_MESSAGES[activeAlert].headline}</p>
+          <p style={styles.alertText}>{ALERT_MESSAGES[activeAlert].body}</p>
+          <button type="button" onClick={dismissAlert} style={styles.alertButton}>
+            Got it
+          </button>
+        </div>
+      )}
 
       <section style={styles.stage}>
         {/* Top area changes with the phase */}
@@ -462,6 +559,39 @@ const styles = {
     fontSize: "1.15rem",
     color: "#6b5560",
     textAlign: "center",
+  },
+  alertBox: {
+    width: "min(90vw, 360px)",
+    margin: "0 0 1.75rem 0",
+    padding: "1.1rem 1.25rem",
+    background: "#fbeef0",
+    border: "1px solid #e3aeba",
+    borderRadius: "16px",
+    boxShadow: "0 6px 18px rgba(180, 110, 130, 0.18)",
+  },
+  alertHeadline: {
+    margin: "0 0 0.5rem 0",
+    fontSize: "1.3rem",
+    fontWeight: 700,
+    color: "#8a5563",
+  },
+  alertText: {
+    margin: "0 0 1rem 0",
+    fontSize: "1.02rem",
+    lineHeight: 1.45,
+    color: "#6b5560",
+  },
+  alertButton: {
+    padding: "0.6rem 1.6rem",
+    background: "#e08aa0",
+    border: "none",
+    borderRadius: "999px",
+    color: "#ffffff",
+    fontSize: "1rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
   },
   deleteButton: {
     display: "block",
