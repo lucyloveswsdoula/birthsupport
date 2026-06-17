@@ -248,6 +248,79 @@ function BreathingGuide({ onBack }) {
   );
 }
 
+// --- Contacts ---
+const CONTACTS_KEY = "birthsupport-contacts";
+const CONTACT_DEFS = [
+  { id: "doctor", label: "Doctor or midwife" },
+  { id: "doula", label: "Doula" },
+  { id: "support", label: "Support person" },
+];
+
+function makeEmptyContacts() {
+  return {
+    doctor: { name: "", phone: "" },
+    doula: { name: "", phone: "" },
+    support: { name: "", phone: "" },
+  };
+}
+
+// Build tel:/sms: links, keeping only dialable characters.
+function telHref(phone) {
+  return `tel:${phone.replace(/[^\d+*#]/g, "")}`;
+}
+function smsHref(phone) {
+  return `sms:${phone.replace(/[^\d+*#]/g, "")}`;
+}
+
+function ContactsScreen({ contacts, onChange, onBack }) {
+  return (
+    <main style={styles.contactsMain}>
+      <button type="button" onClick={onBack} style={styles.backButton}>
+        ← Back
+      </button>
+
+      <div style={styles.contactsTitle}>Have a question?</div>
+      <p style={styles.contactsIntro}>
+        Save numbers so you can call or text in one tap. They stay on your phone.
+      </p>
+
+      {CONTACT_DEFS.map((def) => {
+        const c = contacts[def.id];
+        const hasPhone = c.phone.trim() !== "";
+        return (
+          <div key={def.id} style={styles.contactCard}>
+            <div style={styles.contactLabel}>{def.label}</div>
+            <input
+              type="text"
+              placeholder="Name (optional)"
+              value={c.name}
+              onChange={(e) => onChange(def.id, "name", e.target.value)}
+              style={styles.contactInput}
+            />
+            <input
+              type="tel"
+              placeholder="Phone number"
+              value={c.phone}
+              onChange={(e) => onChange(def.id, "phone", e.target.value)}
+              style={styles.contactInput}
+            />
+            {hasPhone && (
+              <div style={styles.contactActions}>
+                <a href={telHref(c.phone)} style={styles.callButton}>
+                  Call
+                </a>
+                <a href={smsHref(c.phone)} style={styles.textButton}>
+                  Text
+                </a>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </main>
+  );
+}
+
 export default function Home() {
   const [phase, setPhase] = useState(READY);
   const [elapsed, setElapsed] = useState(0); // seconds in the current contraction
@@ -258,7 +331,8 @@ export default function Home() {
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
   const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
   const [historyExpanded, setHistoryExpanded] = useState(false); // show all history rows?
-  const [screen, setScreen] = useState("main"); // "main" | "breathing"
+  const [screen, setScreen] = useState("main"); // "main" | "breathing" | "contacts"
+  const [contacts, setContacts] = useState(makeEmptyContacts); // saved phone numbers
   const [activeAlert, setActiveAlert] = useState(null); // null | "stage1" | "stage2"
   const [stage1Shown, setStage1Shown] = useState(false); // 4-1-1 nudge already shown?
   const [stage2Shown, setStage2Shown] = useState(false); // 3-1-1 nudge already shown?
@@ -334,6 +408,21 @@ export default function Home() {
         setStage1Shown(!!savedAlerts.s1);
         setStage2Shown(!!savedAlerts.s2);
       }
+      const rawContacts = localStorage.getItem(CONTACTS_KEY);
+      const savedContacts = rawContacts ? JSON.parse(rawContacts) : null;
+      if (savedContacts && typeof savedContacts === "object") {
+        const merged = makeEmptyContacts();
+        for (const def of CONTACT_DEFS) {
+          const s = savedContacts[def.id];
+          if (s && typeof s === "object") {
+            merged[def.id] = {
+              name: typeof s.name === "string" ? s.name : "",
+              phone: typeof s.phone === "string" ? s.phone : "",
+            };
+          }
+        }
+        setContacts(merged);
+      }
     } catch {
       // If anything is off, just start fresh.
     }
@@ -375,6 +464,16 @@ export default function Home() {
       // Saving is best-effort; ignore failures.
     }
   }, [activeAlert, stage1Shown, stage2Shown, hydrated]);
+
+  // Save contacts on the device whenever they change.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+    } catch {
+      // Saving is best-effort; ignore failures.
+    }
+  }, [contacts, hydrated]);
 
   // Re-check the pattern whenever a new contraction is logged (and once on load).
   // Each nudge shows only once; the 3-1-1 nudge can still appear after the 4-1-1 one.
@@ -459,6 +558,10 @@ export default function Home() {
     setActiveAlert(null);
   }
 
+  function updateContact(id, field, value) {
+    setContacts((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  }
+
   function startContraction() {
     setConfirmingDelete(false);
     setElapsed(0);
@@ -509,6 +612,15 @@ export default function Home() {
   if (screen === "breathing") {
     return <BreathingGuide onBack={() => setScreen("main")} />;
   }
+  if (screen === "contacts") {
+    return (
+      <ContactsScreen
+        contacts={contacts}
+        onChange={updateContact}
+        onBack={() => setScreen("main")}
+      />
+    );
+  }
 
   return (
     <main style={styles.main}>
@@ -518,9 +630,16 @@ export default function Home() {
         <div style={styles.alertBox} role="status">
           <p style={styles.alertHeadline}>{ALERT_MESSAGES[activeAlert].headline}</p>
           <p style={styles.alertText}>{ALERT_MESSAGES[activeAlert].body}</p>
-          <button type="button" onClick={dismissAlert} style={styles.alertButton}>
-            Got it
-          </button>
+          <div style={styles.alertActions}>
+            {activeAlert === "stage2" && contacts.doctor.phone.trim() !== "" && (
+              <a href={telHref(contacts.doctor.phone)} style={styles.alertCallButton}>
+                Call now
+              </a>
+            )}
+            <button type="button" onClick={dismissAlert} style={styles.alertButton}>
+              Got it
+            </button>
+          </div>
         </div>
       )}
 
@@ -563,13 +682,22 @@ export default function Home() {
           <p style={styles.helper}>Tap start when a contraction begins.</p>
         )}
 
-        <button
-          type="button"
-          onClick={() => setScreen("breathing")}
-          style={styles.breathingLink}
-        >
-          Breathing Guide
-        </button>
+        <div style={styles.footerLinks}>
+          <button
+            type="button"
+            onClick={() => setScreen("breathing")}
+            style={styles.footerLink}
+          >
+            Breathing Guide
+          </button>
+          <button
+            type="button"
+            onClick={() => setScreen("contacts")}
+            style={styles.footerLink}
+          >
+            Have a question?
+          </button>
+        </div>
       </section>
 
       {showHistory && (
@@ -801,6 +929,23 @@ const styles = {
     lineHeight: 1.45,
     color: "#6b5560",
   },
+  alertActions: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "0.6rem",
+  },
+  alertCallButton: {
+    display: "inline-block",
+    padding: "0.75rem 1.9rem",
+    background: "#c76b82",
+    borderRadius: "999px",
+    color: "#ffffff",
+    fontSize: "1.1rem",
+    fontWeight: 700,
+    textDecoration: "none",
+    WebkitTapHighlightColor: "transparent",
+  },
   alertButton: {
     padding: "0.6rem 1.6rem",
     background: "#e08aa0",
@@ -813,13 +958,103 @@ const styles = {
     WebkitTapHighlightColor: "transparent",
     touchAction: "manipulation",
   },
-  breathingLink: {
+  contactsMain: {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "4.5rem 1.5rem 2.5rem",
+    boxSizing: "border-box",
+    gap: "1.25rem",
+    fontFamily:
+      "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+    color: "#34564f",
+  },
+  contactsTitle: {
+    fontSize: "1.05rem",
+    fontWeight: 700,
+    letterSpacing: "1px",
+    textTransform: "uppercase",
+    color: "#2f5a53",
+  },
+  contactsIntro: {
+    margin: 0,
+    maxWidth: "20rem",
+    fontSize: "1rem",
+    lineHeight: 1.4,
+    color: "#4a6b66",
+    textAlign: "center",
+  },
+  contactCard: {
+    width: "min(92vw, 380px)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.6rem",
+    padding: "1.1rem",
+    boxSizing: "border-box",
+    background: "rgba(255, 255, 255, 0.65)",
+    border: "1px solid #8fc4ba",
+    borderRadius: "16px",
+  },
+  contactLabel: {
+    fontSize: "1.1rem",
+    fontWeight: 700,
+    color: "#2f5a53",
+  },
+  contactInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "0.7rem 0.9rem",
+    fontSize: "1.05rem",
+    borderRadius: "10px",
+    border: "1px solid #9ec9c2",
+    background: "#ffffff",
+    color: "#333333",
+  },
+  contactActions: {
+    display: "flex",
+    gap: "0.75rem",
+    marginTop: "0.25rem",
+  },
+  callButton: {
+    flex: 1,
+    textAlign: "center",
+    padding: "0.85rem",
+    borderRadius: "999px",
+    background: "#4e9e90",
+    color: "#ffffff",
+    fontSize: "1.1rem",
+    fontWeight: 600,
+    textDecoration: "none",
+    WebkitTapHighlightColor: "transparent",
+  },
+  textButton: {
+    flex: 1,
+    boxSizing: "border-box",
+    textAlign: "center",
+    padding: "0.85rem",
+    borderRadius: "999px",
+    background: "rgba(255, 255, 255, 0.9)",
+    border: "1px solid #4e9e90",
+    color: "#2f5a53",
+    fontSize: "1.1rem",
+    fontWeight: 600,
+    textDecoration: "none",
+    WebkitTapHighlightColor: "transparent",
+  },
+  footerLinks: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "0.6rem",
     marginTop: "0.5rem",
+  },
+  footerLink: {
     padding: "0.7rem 1.4rem",
     background: "rgba(255, 255, 255, 0.6)",
-    border: "1px solid #9ec9c2",
+    border: "1px solid #4e9e90",
     borderRadius: "999px",
-    color: "#3f6b64",
+    color: "#2f5a53",
     fontSize: "1rem",
     fontWeight: 600,
     cursor: "pointer",
