@@ -393,7 +393,28 @@ function makeDefaultSettings() {
   return { cards: true, affirmations: true, keepAwake: true, alerts: true };
 }
 
-function SettingsScreen({ settings, onToggle, onBack, bg, role, onChangeRole, onQuestion }) {
+// Background sounds. Files go in public/sounds/ (added by the user later); if a
+// file is missing it simply won't play — the app keeps working.
+const SOUND_KEY = "birthsupport-sound";
+const SOUND_OPTIONS = [
+  { id: "silence", label: "Silence", src: null },
+  { id: "ocean", label: "Ocean waves", src: "/sounds/ocean.mp3" },
+  { id: "rain", label: "Rain on leaves", src: "/sounds/rain.mp3" },
+  { id: "bowls", label: "Tibetan bowls", src: "/sounds/bowls.mp3" },
+  { id: "white-noise", label: "White noise", src: "/sounds/white-noise.mp3" },
+];
+
+function SettingsScreen({
+  settings,
+  onToggle,
+  onBack,
+  bg,
+  role,
+  onChangeRole,
+  soundKey,
+  onChangeSound,
+  onQuestion,
+}) {
   return (
     <main style={{ ...styles.checklistMain, background: bg }}>
       <button type="button" onClick={onBack} style={styles.backButton}>
@@ -453,6 +474,25 @@ function SettingsScreen({ settings, onToggle, onBack, bg, role, onChangeRole, on
         </div>
       </div>
 
+      <div style={styles.roleSection}>
+        <div style={styles.roleHeading}>Background sound</div>
+        <div style={styles.roleButtons}>
+          {SOUND_OPTIONS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => onChangeSound(s.id)}
+              style={{
+                ...styles.roleButton,
+                ...(soundKey === s.id ? styles.roleButtonActive : {}),
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <QuestionFooter onClick={onQuestion} />
     </main>
   );
@@ -507,6 +547,7 @@ export default function Home() {
   const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
   const [menuOpen, setMenuOpen] = useState(false); // hamburger menu open?
+  const [soundKey, setSoundKey] = useState("silence"); // background sound choice
   const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
   const [historyExpanded, setHistoryExpanded] = useState(false); // show all history rows?
   const [screen, setScreen] = useState("main"); // "main" | "breathing" | "contacts" | "checklist"
@@ -521,6 +562,9 @@ export default function Home() {
 
   const intervalRef = useRef(null); // holds the running 1-second ticker
   const startRef = useRef(null); // when the current contraction began
+  const audioRef = useRef(null); // background sound player
+  const soundKeyRef = useRef("silence"); // latest sound choice for event handlers
+  soundKeyRef.current = soundKey;
 
   // When the app opens, load any saved data from this phone.
   useEffect(() => {
@@ -628,6 +672,10 @@ export default function Home() {
       if (savedRole === "mom" || savedRole === "doula") {
         setRole(savedRole);
       }
+      const savedSound = localStorage.getItem(SOUND_KEY);
+      if (savedSound && SOUND_OPTIONS.some((s) => s.id === savedSound)) {
+        setSoundKey(savedSound);
+      }
     } catch {
       // If anything is off, just start fresh.
     }
@@ -710,6 +758,52 @@ export default function Home() {
       // Saving is best-effort; ignore failures.
     }
   }, [role, hydrated]);
+
+  // Save the background sound choice on the device.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(SOUND_KEY, soundKey);
+    } catch {
+      // Saving is best-effort; ignore failures.
+    }
+  }, [soundKey, hydrated]);
+
+  // Play / switch the looping background sound across all screens.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.loop = true;
+      audioRef.current.volume = 0.3; // gentle, low volume
+    }
+    const audio = audioRef.current;
+    const choice = SOUND_OPTIONS.find((s) => s.id === soundKey);
+    if (!choice || !choice.src) {
+      audio.pause(); // "Silence"
+      return;
+    }
+    if (!audio.src.endsWith(choice.src)) {
+      audio.src = choice.src; // switching sources stops the old one
+    }
+    // May be blocked until a user gesture, or fail if the file isn't added yet.
+    audio.play().catch(() => {});
+  }, [soundKey, hydrated]);
+
+  // Browsers block audio until the user interacts; resume on the first tap.
+  useEffect(() => {
+    function resume() {
+      const audio = audioRef.current;
+      if (audio && soundKeyRef.current !== "silence" && audio.paused) {
+        audio.play().catch(() => {});
+      }
+    }
+    window.addEventListener("pointerdown", resume);
+    return () => {
+      window.removeEventListener("pointerdown", resume);
+      if (audioRef.current) audioRef.current.pause();
+    };
+  }, []);
 
   // Re-check the pattern whenever a new contraction is logged (and once on load).
   // Each nudge shows only once; the 3-1-1 nudge can still appear after the 4-1-1 one.
@@ -922,6 +1016,8 @@ export default function Home() {
         bg={settingsBg}
         role={role}
         onChangeRole={setRole}
+        soundKey={soundKey}
+        onChangeSound={setSoundKey}
         onQuestion={() => setScreen("contacts")}
       />
     );
