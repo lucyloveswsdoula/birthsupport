@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <!-- vines -->
+  <g stroke="#8fbf86" stroke-width="1.5" fill="none" opacity="0.45" stroke-linecap="round">
+    <path d="M8 96 q 16 -20 36 -10 q 20 10 42 -8" />
+    <path d="M82 18 q 11 18 -8 31" />
+  </g>
+  <!-- leaves -->
+  <g fill="#9ecb91" opacity="0.5">
+    <ellipse cx="46" cy="82" rx="6" ry="3" transform="rotate(-25 46 82)" />
+    <ellipse cx="92" cy="40" rx="6" ry="3" transform="rotate(30 92 40)" />
+    <ellipse cx="18" cy="42" rx="5" ry="2.6" transform="rotate(15 18 42)" />
+  </g>
+  <!-- morning-glory flowers -->
+  <g>
+    <circle cx="30" cy="30" r="9" fill="#9fb9ec" />
+    <g stroke="#ffffff" stroke-width="1" opacity="0.7">
+      <line x1="30" y1="30" x2="30" y2="21" />
+      <line x1="30" y1="30" x2="38.6" y2="27.2" />
+      <line x1="30" y1="30" x2="35.3" y2="37.3" />
+      <line x1="30" y1="30" x2="24.7" y2="37.3" />
+      <line x1="30" y1="30" x2="21.4" y2="27.2" />
+    </g>
+    <circle cx="30" cy="30" r="2.4" fill="#fbf4c4" />
+
+    <circle cx="84" cy="86" r="9" fill="#88a6e6" />
+    <g stroke="#ffffff" stroke-width="1" opacity="0.7">
+      <line x1="84" y1="86" x2="84" y2="77" />
+      <line x1="84" y1="86" x2="92.6" y2="83.2" />
+      <line x1="84" y1="86" x2="89.3" y2="93.3" />
+      <line x1="84" y1="86" x2="78.7" y2="93.3" />
+      <line x1="84" y1="86" x2="75.4" y2="83.2" />
+    </g>
+    <circle cx="84" cy="86" r="2.4" fill="#fbf4c4" />
+
+    <circle cx="99" cy="15" r="5.5" fill="#a7bff0" />
+    <circle cx="99" cy="15" r="1.6" fill="#fbf4c4" />
+  </g>
+</svg>

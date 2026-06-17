@@ -3,7 +3,10 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  background: #a9d8ce;
+  background-color: #d7ecce;
+  background-image: url("/flowers.svg");
+  background-repeat: repeat;
+  background-size: 120px 120px;
 }
 
 /* Gentle fade as each affirmation appears during a contraction. */
