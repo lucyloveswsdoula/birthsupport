@@ -376,6 +376,56 @@ function ChecklistScreen({ checked, onToggle, onBack }) {
   );
 }
 
+// --- Settings ---
+const SETTINGS_KEY = "birthsupport-settings";
+const SETTINGS_DEFS = [
+  { id: "cards", label: "Show partner support cards" },
+  { id: "affirmations", label: "Show affirmations during contractions" },
+  { id: "keepAwake", label: "Keep the screen awake" },
+  { id: "alerts", label: "Show pattern alerts" },
+];
+
+function makeDefaultSettings() {
+  return { cards: true, affirmations: true, keepAwake: true, alerts: true };
+}
+
+function SettingsScreen({ settings, onToggle, onBack }) {
+  return (
+    <main style={styles.checklistMain}>
+      <button type="button" onClick={onBack} style={styles.backButton}>
+        ← Back
+      </button>
+
+      <div style={styles.contactsTitle}>Settings</div>
+
+      <div style={styles.settingsList}>
+        {SETTINGS_DEFS.map((def) => {
+          const on = settings[def.id];
+          return (
+            <button
+              key={def.id}
+              type="button"
+              onClick={() => onToggle(def.id)}
+              style={styles.settingsRow}
+              aria-pressed={on}
+            >
+              <span style={styles.settingsLabel}>{def.label}</span>
+              <span
+                style={{
+                  ...styles.switchTrack,
+                  background: on ? "#4e9e90" : "#c4c4c4",
+                }}
+              >
+                <span style={{ ...styles.switchKnob, left: on ? "25px" : "3px" }} />
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </main>
+  );
+}
+
 export default function Home() {
   const [phase, setPhase] = useState(READY);
   const [elapsed, setElapsed] = useState(0); // seconds in the current contraction
@@ -389,6 +439,7 @@ export default function Home() {
   const [screen, setScreen] = useState("main"); // "main" | "breathing" | "contacts" | "checklist"
   const [contacts, setContacts] = useState(makeEmptyContacts); // saved phone numbers
   const [checklist, setChecklist] = useState(() => CHECKLIST_ITEMS.map(() => false));
+  const [settings, setSettings] = useState(makeDefaultSettings); // feature on/off toggles
   const [activeAlert, setActiveAlert] = useState(null); // null | "stage1" | "stage2"
   const [stage1Shown, setStage1Shown] = useState(false); // 4-1-1 nudge already shown?
   const [stage2Shown, setStage2Shown] = useState(false); // 3-1-1 nudge already shown?
@@ -484,6 +535,17 @@ export default function Home() {
       if (Array.isArray(savedChecklist)) {
         setChecklist(CHECKLIST_ITEMS.map((_, i) => savedChecklist[i] === true));
       }
+      const rawSettings = localStorage.getItem(SETTINGS_KEY);
+      const savedSettings = rawSettings ? JSON.parse(rawSettings) : null;
+      if (savedSettings && typeof savedSettings === "object") {
+        // Anything not explicitly false stays ON (the default).
+        setSettings({
+          cards: savedSettings.cards !== false,
+          affirmations: savedSettings.affirmations !== false,
+          keepAwake: savedSettings.keepAwake !== false,
+          alerts: savedSettings.alerts !== false,
+        });
+      }
     } catch {
       // If anything is off, just start fresh.
     }
@@ -546,10 +608,20 @@ export default function Home() {
     }
   }, [checklist, hydrated]);
 
+  // Save the settings on the device whenever they change.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch {
+      // Saving is best-effort; ignore failures.
+    }
+  }, [settings, hydrated]);
+
   // Re-check the pattern whenever a new contraction is logged (and once on load).
   // Each nudge shows only once; the 3-1-1 nudge can still appear after the 4-1-1 one.
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !settings.alerts) return;
     if (patternHolds(history, GAP_311) && !stage2Shown) {
       setActiveAlert("stage2");
       setStage1Shown(true); // we've moved past the "get ready" point
@@ -559,7 +631,7 @@ export default function Home() {
       setStage1Shown(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history, hydrated]);
+  }, [history, hydrated, settings.alerts]);
 
   // Safety net: if the page ever unmounts mid-contraction, stop the ticker.
   useEffect(() => {
@@ -568,10 +640,13 @@ export default function Home() {
     };
   }, []);
 
-  // Keep the phone screen awake while the app is open and visible.
+  // Keep the phone screen awake while the app is open and visible (if enabled).
   useEffect(() => {
     if (typeof navigator === "undefined" || !("wakeLock" in navigator)) {
       return; // older browser: do nothing, app works normally
+    }
+    if (!settings.keepAwake) {
+      return; // setting turned off: don't hold the screen awake
     }
 
     let wakeLock = null;
@@ -607,18 +682,18 @@ export default function Home() {
         wakeLock = null;
       }
     };
-  }, []);
+  }, [settings.keepAwake]);
 
   // While a contraction is in progress, slowly rotate the affirmation on its own.
   useEffect(() => {
-    if (phase !== ACTIVE) return;
+    if (phase !== ACTIVE || !settings.affirmations) return;
     // Fresh affirmation at the start of each contraction.
     setAffirmationIndex((prev) => nextAffirmation(prev));
     const id = setInterval(() => {
       setAffirmationIndex((prev) => nextAffirmation(prev));
     }, AFFIRMATION_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [phase]);
+  }, [phase, settings.affirmations]);
 
   function clearHistory() {
     setHistory([]); // also empties the saved copy via the save effect
@@ -635,6 +710,10 @@ export default function Home() {
 
   function toggleChecklistItem(index) {
     setChecklist((prev) => prev.map((v, i) => (i === index ? !v : v)));
+  }
+
+  function toggleSetting(id) {
+    setSettings((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
   function startContraction() {
@@ -705,12 +784,21 @@ export default function Home() {
       />
     );
   }
+  if (screen === "settings") {
+    return (
+      <SettingsScreen
+        settings={settings}
+        onToggle={toggleSetting}
+        onBack={() => setScreen("main")}
+      />
+    );
+  }
 
   return (
     <main style={styles.main}>
       <header style={styles.title}>Birth Support</header>
 
-      {activeAlert && (
+      {activeAlert && settings.alerts && (
         <div style={styles.alertBox} role="status">
           <p style={styles.alertHeadline}>{ALERT_MESSAGES[activeAlert].headline}</p>
           <p style={styles.alertText}>{ALERT_MESSAGES[activeAlert].body}</p>
@@ -731,7 +819,7 @@ export default function Home() {
         {/* Top area changes with the phase */}
         {isActive && <div style={styles.timer}>{formatClock(elapsed)}</div>}
 
-        {isActive && (
+        {isActive && settings.affirmations && (
           <p key={affirmationIndex} style={styles.affirmation}>
             {AFFIRMATIONS[affirmationIndex]}
           </p>
@@ -743,7 +831,7 @@ export default function Home() {
           </p>
         )}
 
-        {phase === REST && currentCard && (
+        {phase === REST && currentCard && settings.cards && (
           <div style={styles.card}>
             <p style={styles.cardLabel}>For your partner</p>
             <p style={styles.cardAction}>{currentCard}</p>
@@ -787,6 +875,13 @@ export default function Home() {
             style={styles.footerLink}
           >
             Prep Checklist
+          </button>
+          <button
+            type="button"
+            onClick={() => setScreen("settings")}
+            style={styles.footerLink}
+          >
+            Settings
           </button>
         </div>
       </section>
@@ -881,7 +976,7 @@ const styles = {
     boxSizing: "border-box",
     background: "#9ed0c6",
     fontFamily:
-      "ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+      "Georgia, 'Times New Roman', Times, serif",
     color: "#6b5560",
   },
   title: {
@@ -1060,7 +1155,7 @@ const styles = {
     boxSizing: "border-box",
     gap: "1.25rem",
     fontFamily:
-      "ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+      "Georgia, 'Times New Roman', Times, serif",
     color: "#34564f",
   },
   contactsTitle: {
@@ -1144,7 +1239,7 @@ const styles = {
     boxSizing: "border-box",
     gap: "1.25rem",
     fontFamily:
-      "ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+      "Georgia, 'Times New Roman', Times, serif",
     color: "#34564f",
   },
   checklistList: {
@@ -1201,6 +1296,55 @@ const styles = {
     textDecoration: "line-through",
     color: "#5a8079",
   },
+  settingsList: {
+    listStyle: "none",
+    margin: 0,
+    padding: 0,
+    width: "min(92vw, 380px)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.75rem",
+  },
+  settingsRow: {
+    width: "100%",
+    boxSizing: "border-box",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "1rem",
+    padding: "1rem 1.1rem",
+    background: "rgba(255, 255, 255, 0.65)",
+    border: "1px solid #8fc4ba",
+    borderRadius: "14px",
+    cursor: "pointer",
+    textAlign: "left",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  settingsLabel: {
+    fontSize: "1.1rem",
+    fontWeight: 600,
+    color: "#2f5a53",
+  },
+  switchTrack: {
+    position: "relative",
+    flexShrink: 0,
+    width: "52px",
+    height: "30px",
+    borderRadius: "999px",
+    transition: "background 0.2s ease",
+    display: "inline-block",
+  },
+  switchKnob: {
+    position: "absolute",
+    top: "3px",
+    width: "24px",
+    height: "24px",
+    borderRadius: "50%",
+    background: "#ffffff",
+    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
+    transition: "left 0.2s ease",
+  },
   footerLinks: {
     display: "flex",
     flexDirection: "column",
@@ -1233,7 +1377,7 @@ const styles = {
     gap: "1.75rem",
     background: "#f6bfd2",
     fontFamily:
-      "ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+      "Georgia, 'Times New Roman', Times, serif",
     color: "#5e4b8b",
   },
   backButton: {
