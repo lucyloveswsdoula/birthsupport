@@ -171,6 +171,44 @@ export default function Home() {
 
   // When the app opens, load any saved data from this phone.
   useEffect(() => {
+    // Testing helper: visiting "?test=411" or "?test=311" loads a fake hour of
+    // contractions so the alerts can be previewed; "?test=clear" wipes everything.
+    try {
+      const test = new URLSearchParams(window.location.search).get("test");
+      if (test) {
+        if (test === "clear") {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(ALERTS_KEY);
+          setHistory([]);
+          setActiveAlert(null);
+          setStage1Shown(false);
+          setStage2Shown(false);
+        } else if (test === "411" || test === "311") {
+          const g = test === "411" ? 240 : 180; // seconds between starts
+          const n = test === "411" ? 15 : 18; // enough to span ~an hour
+          const now = Date.now();
+          const fake = [];
+          for (let i = 0; i < n; i++) {
+            fake.push({
+              startTime: now - i * g * 1000,
+              durationSec: 60,
+              gapSec: i === n - 1 ? null : g,
+            });
+          }
+          setHistory(fake);
+          setActiveAlert(null);
+          setStage1Shown(false);
+          setStage2Shown(false);
+        }
+        // Remove the ?test=... from the address bar so a refresh doesn't repeat it.
+        window.history.replaceState({}, "", window.location.pathname);
+        setHydrated(true);
+        return;
+      }
+    } catch {
+      // Ignore and fall through to normal loading.
+    }
+
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
