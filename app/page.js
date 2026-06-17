@@ -485,6 +485,7 @@ function WelcomeScreen({ onPick }) {
 export default function Home() {
   const [phase, setPhase] = useState(READY);
   const [elapsed, setElapsed] = useState(0); // seconds in the current contraction
+  const [now, setNow] = useState(() => Date.now()); // ticking clock for the rest screen
   const [history, setHistory] = useState([]); // newest first
   const [cardIndex, setCardIndex] = useState(0); // which card is current
   const [cardShown, setCardShown] = useState(0); // how many times current card has shown
@@ -771,6 +772,15 @@ export default function Home() {
     return () => clearInterval(id);
   }, [phase, settings.affirmations]);
 
+  // While resting (no contraction in progress), tick a clock once a second so the
+  // "time since your last contraction" line stays current.
+  useEffect(() => {
+    if (phase === ACTIVE) return;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [phase]);
+
   function clearHistory() {
     setHistory([]); // also empties the saved copy via the save effect
     setConfirmingDelete(false);
@@ -836,6 +846,10 @@ export default function Home() {
   const isActive = phase === ACTIVE;
   const lastContraction = history[0];
   const showHistory = phase !== ACTIVE && history.length > 0;
+  const sinceSeconds =
+    history.length > 0
+      ? Math.max(0, Math.floor((now - history[0].startTime) / 1000))
+      : 0;
 
   // Role tint: Mom/Partner keeps the custom colors; Doula re-tints to soft teal.
   const isDoula = role === "doula";
@@ -934,6 +948,20 @@ export default function Home() {
           </div>
         )}
 
+        {!isActive && (
+          <div style={styles.restBlock}>
+            <p style={styles.restMessage}>
+              Rest now. Breathe slowly. You&apos;re doing beautifully.
+            </p>
+            {history.length > 0 && (
+              <p style={styles.restSince}>
+                It&apos;s been {formatDuration(sinceSeconds)} since your last
+                contraction
+              </p>
+            )}
+          </div>
+        )}
+
         {/* One big button; its label and action depend on the phase */}
         <button
           type="button"
@@ -945,10 +973,6 @@ export default function Home() {
         >
           {isActive ? "End" : "Start"}
         </button>
-
-        {phase === READY && (
-          <p style={styles.helper}>Tap start when a contraction begins.</p>
-        )}
 
         <div style={styles.footerLinks}>
           <button
@@ -1126,6 +1150,24 @@ const styles = {
     fontSize: "1.05rem",
     color: "#9c8088",
     maxWidth: "18rem",
+  },
+  restBlock: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
+  restMessage: {
+    margin: 0,
+    maxWidth: "20rem",
+    fontSize: "1.3rem",
+    lineHeight: 1.5,
+    color: "#4f4347",
+  },
+  restSince: {
+    margin: 0,
+    fontSize: "1rem",
+    color: "#6e5f64",
   },
   card: {
     width: "min(85vw, 320px)",
