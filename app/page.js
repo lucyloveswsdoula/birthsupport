@@ -300,6 +300,47 @@ export default function Home() {
     };
   }, []);
 
+  // Keep the phone screen awake while the app is open and visible.
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("wakeLock" in navigator)) {
+      return; // older browser: do nothing, app works normally
+    }
+
+    let wakeLock = null;
+
+    const requestWakeLock = async () => {
+      try {
+        wakeLock = await navigator.wakeLock.request("screen");
+      } catch {
+        // e.g. tab not visible or request denied — ignore quietly
+      }
+    };
+
+    const handleVisibility = async () => {
+      if (document.visibilityState === "visible") {
+        requestWakeLock(); // phones drop the lock when away — re-acquire it
+      } else if (wakeLock) {
+        try {
+          await wakeLock.release();
+        } catch {
+          // ignore
+        }
+        wakeLock = null;
+      }
+    };
+
+    requestWakeLock();
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (wakeLock) {
+        wakeLock.release().catch(() => {});
+        wakeLock = null;
+      }
+    };
+  }, []);
+
   // While a contraction is in progress, slowly rotate the affirmation on its own.
   useEffect(() => {
     if (phase !== ACTIVE) return;
