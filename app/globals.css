@@ -7,6 +7,8 @@ body {
   background-image: url("/flowers.svg");
   background-repeat: repeat;
   background-size: 120px 120px;
+  font-family: ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN",
+    system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Gentle fade as each affirmation appears during a contraction. */
