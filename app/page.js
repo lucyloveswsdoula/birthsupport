@@ -879,6 +879,7 @@ const styles = {
     textAlign: "center",
     padding: "1.5rem",
     boxSizing: "border-box",
+    background: "#9ed0c6",
     fontFamily:
       "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
     color: "#6b5560",
