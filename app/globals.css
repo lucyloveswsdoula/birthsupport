@@ -10,6 +10,12 @@ body {
   font-family: Georgia, "Times New Roman", Times, serif;
 }
 
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
 /* Gentle fade as each affirmation appears during a contraction. */
 @keyframes affirmationFade {
   from {

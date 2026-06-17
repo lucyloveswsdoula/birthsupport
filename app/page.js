@@ -529,6 +529,7 @@ export default function Home() {
   const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
   const [shareMsg, setShareMsg] = useState(""); // small confirmation after sharing/copying
+  const [menuOpen, setMenuOpen] = useState(false); // hamburger menu open?
   const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
   const [historyExpanded, setHistoryExpanded] = useState(false); // show all history rows?
   const [screen, setScreen] = useState("main"); // "main" | "breathing" | "contacts" | "checklist"
@@ -975,6 +976,54 @@ export default function Home() {
     <main style={{ ...styles.main, background: homeBg }}>
       <header style={styles.title}>Birth Support</header>
 
+      <button
+        type="button"
+        style={styles.hamburger}
+        onClick={() => setMenuOpen((v) => !v)}
+        aria-label="Menu"
+        aria-expanded={menuOpen}
+      >
+        ☰
+      </button>
+
+      {menuOpen && (
+        <>
+          <div style={styles.menuBackdrop} onClick={() => setMenuOpen(false)} />
+          <nav style={styles.menuPanel}>
+            <button
+              type="button"
+              style={styles.menuItem}
+              onClick={() => {
+                setScreen("breathing");
+                setMenuOpen(false);
+              }}
+            >
+              Breathing Guide
+            </button>
+            <button
+              type="button"
+              style={styles.menuItem}
+              onClick={() => {
+                setScreen("checklist");
+                setMenuOpen(false);
+              }}
+            >
+              Prep Checklist
+            </button>
+            <button
+              type="button"
+              style={styles.menuItem}
+              onClick={() => {
+                setScreen("settings");
+                setMenuOpen(false);
+              }}
+            >
+              Settings
+            </button>
+          </nav>
+        </>
+      )}
+
       {activeAlert && settings.alerts && (
         <div style={styles.alertBox} role="status">
           <p style={styles.alertHeadline}>{ALERT_MESSAGES[activeAlert].headline}</p>
@@ -1002,12 +1051,6 @@ export default function Home() {
           </p>
         )}
 
-        {phase === REST && lastContraction && (
-          <p style={styles.duration}>
-            That contraction lasted {formatDuration(lastContraction.durationSec)}
-          </p>
-        )}
-
         {phase === REST && currentCard && settings.cards && (
           <div style={styles.card}>
             <p style={styles.cardLabel}>For your partner</p>
@@ -1021,10 +1064,16 @@ export default function Home() {
               Rest now. Breathe slowly. You&apos;re doing beautifully.
             </p>
             {history.length > 0 && (
-              <p style={styles.restSince}>
-                It&apos;s been {formatDuration(sinceSeconds)} since your last
-                contraction
-              </p>
+              <>
+                <p style={styles.restLasted}>
+                  Your last contraction lasted{" "}
+                  {formatDuration(lastContraction.durationSec)}
+                </p>
+                <p style={styles.restSince}>
+                  It&apos;s been {formatDuration(sinceSeconds)} since your last
+                  contraction
+                </p>
+              </>
             )}
           </div>
         )}
@@ -1040,30 +1089,6 @@ export default function Home() {
         >
           {isActive ? "End" : "Start"}
         </button>
-
-        <div style={styles.footerLinks}>
-          <button
-            type="button"
-            onClick={() => setScreen("breathing")}
-            style={styles.footerLink}
-          >
-            Breathing Guide
-          </button>
-          <button
-            type="button"
-            onClick={() => setScreen("checklist")}
-            style={styles.footerLink}
-          >
-            Prep Checklist
-          </button>
-          <button
-            type="button"
-            onClick={() => setScreen("settings")}
-            style={styles.footerLink}
-          >
-            Settings
-          </button>
-        </div>
       </section>
 
       {showHistory && (
@@ -1175,11 +1200,63 @@ const styles = {
     textTransform: "uppercase",
     color: "#c99aa6",
   },
+  hamburger: {
+    position: "fixed",
+    top: "0.9rem",
+    right: "1rem",
+    width: "2.6rem",
+    height: "2.6rem",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "rgba(255, 255, 255, 0.8)",
+    border: "1px solid rgba(80, 80, 80, 0.18)",
+    borderRadius: "12px",
+    color: "#4f4f4f",
+    fontSize: "1.5rem",
+    lineHeight: 1,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+    zIndex: 30,
+  },
+  menuBackdrop: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 25,
+  },
+  menuPanel: {
+    position: "fixed",
+    top: "3.6rem",
+    right: "1rem",
+    minWidth: "190px",
+    display: "flex",
+    flexDirection: "column",
+    padding: "0.4rem",
+    background: "#ffffff",
+    borderRadius: "14px",
+    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.18)",
+    zIndex: 30,
+  },
+  menuItem: {
+    width: "100%",
+    textAlign: "left",
+    padding: "0.85rem 1rem",
+    background: "transparent",
+    border: "none",
+    borderRadius: "8px",
+    color: "#4f4f4f",
+    fontSize: "1.05rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
   stage: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: "2rem",
+    gap: "1.4rem",
   },
   timer: {
     fontSize: "min(22vw, 5.5rem)",
@@ -1231,6 +1308,12 @@ const styles = {
     lineHeight: 1.5,
     color: "#4f4347",
   },
+  restLasted: {
+    margin: 0,
+    fontSize: "1.1rem",
+    fontWeight: 600,
+    color: "#4f4347",
+  },
   restSince: {
     margin: 0,
     fontSize: "1rem",
@@ -1273,7 +1356,7 @@ const styles = {
   },
   historyWrap: {
     width: "min(90vw, 360px)",
-    marginTop: "2.5rem",
+    marginTop: "1.5rem",
     marginBottom: "1rem",
   },
   historyTitle: {
