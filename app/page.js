@@ -151,6 +151,103 @@ function patternHolds(history, maxGapSec) {
   return spanSec >= ALERT_MIN_SPAN;
 }
 
+// --- Breathing guide ---
+// Each pattern is a loop of steps. "scale" is the circle size (1.0 = full),
+// and "duration" is how long that step takes, which the circle animates over.
+const CIRCLE_BASE = 220; // px at full size (scale 1.0)
+const BREATHING_PATTERNS = {
+  slow: {
+    label: "Slow",
+    steps: [
+      { word: "Breathe in", scale: 1.0, duration: 4000 },
+      { word: "Breathe out", scale: 0.5, duration: 6000 },
+    ],
+  },
+  fourSevenEight: {
+    label: "4-7-8",
+    steps: [
+      { word: "Breathe in", scale: 1.0, duration: 4000 },
+      { word: "Hold", scale: 1.0, duration: 7000 },
+      { word: "Breathe out", scale: 0.5, duration: 8000 },
+    ],
+  },
+  heehoo: {
+    label: "Hee-hoo",
+    steps: [
+      { word: "hee", scale: 0.95, duration: 450 },
+      { word: "hee", scale: 0.7, duration: 450 },
+      { word: "hee", scale: 0.95, duration: 450 },
+      { word: "hee", scale: 0.7, duration: 450 },
+      { word: "hee", scale: 0.95, duration: 450 },
+      { word: "hee", scale: 0.7, duration: 450 },
+      { word: "hoo", scale: 0.35, duration: 3000 },
+    ],
+  },
+};
+const BREATHING_ORDER = ["slow", "fourSevenEight", "heehoo"];
+
+function BreathingGuide({ onBack }) {
+  const [patternKey, setPatternKey] = useState(null);
+  const [stepIndex, setStepIndex] = useState(0);
+
+  const pattern = patternKey ? BREATHING_PATTERNS[patternKey] : null;
+  const step = pattern ? pattern.steps[stepIndex] : null;
+
+  // Step through the chosen pattern on a loop, in time with the circle.
+  useEffect(() => {
+    if (!pattern) return;
+    const id = setTimeout(() => {
+      setStepIndex((i) => (i + 1) % pattern.steps.length);
+    }, pattern.steps[stepIndex].duration);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patternKey, stepIndex]);
+
+  function choosePattern(key) {
+    setStepIndex(0);
+    setPatternKey(key);
+  }
+
+  const scale = step ? step.scale : 0.6;
+  const transition = step
+    ? `transform ${step.duration}ms ease-in-out`
+    : "transform 0.6s ease-in-out";
+
+  return (
+    <main style={styles.breathMain}>
+      <button type="button" onClick={onBack} style={styles.backButton}>
+        ← Back
+      </button>
+
+      <div style={styles.breathTitle}>Breathing Guide</div>
+
+      <div style={styles.circleWrap}>
+        <div
+          style={{ ...styles.breathCircle, transform: `scale(${scale})`, transition }}
+        />
+      </div>
+
+      <p style={styles.breathWord}>{step ? step.word : "Choose a pattern"}</p>
+
+      <div style={styles.patternRow}>
+        {BREATHING_ORDER.map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => choosePattern(key)}
+            style={{
+              ...styles.patternButton,
+              ...(patternKey === key ? styles.patternButtonActive : {}),
+            }}
+          >
+            {BREATHING_PATTERNS[key].label}
+          </button>
+        ))}
+      </div>
+    </main>
+  );
+}
+
 export default function Home() {
   const [phase, setPhase] = useState(READY);
   const [elapsed, setElapsed] = useState(0); // seconds in the current contraction
@@ -161,6 +258,7 @@ export default function Home() {
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
   const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
   const [historyExpanded, setHistoryExpanded] = useState(false); // show all history rows?
+  const [screen, setScreen] = useState("main"); // "main" | "breathing"
   const [activeAlert, setActiveAlert] = useState(null); // null | "stage1" | "stage2"
   const [stage1Shown, setStage1Shown] = useState(false); // 4-1-1 nudge already shown?
   const [stage2Shown, setStage2Shown] = useState(false); // 3-1-1 nudge already shown?
@@ -406,6 +504,12 @@ export default function Home() {
   const lastContraction = history[0];
   const showHistory = phase !== ACTIVE && history.length > 0;
 
+  // The breathing guide is just a different screen of this same component, so the
+  // contraction timer keeps running underneath and its history is untouched.
+  if (screen === "breathing") {
+    return <BreathingGuide onBack={() => setScreen("main")} />;
+  }
+
   return (
     <main style={styles.main}>
       <header style={styles.title}>Birth Support</header>
@@ -458,6 +562,14 @@ export default function Home() {
         {phase === READY && (
           <p style={styles.helper}>Tap start when a contraction begins.</p>
         )}
+
+        <button
+          type="button"
+          onClick={() => setScreen("breathing")}
+          style={styles.breathingLink}
+        >
+          Breathing Guide
+        </button>
       </section>
 
       {showHistory && (
@@ -700,6 +812,101 @@ const styles = {
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
     touchAction: "manipulation",
+  },
+  breathingLink: {
+    marginTop: "0.5rem",
+    padding: "0.7rem 1.4rem",
+    background: "rgba(255, 255, 255, 0.6)",
+    border: "1px solid #9ec9c2",
+    borderRadius: "999px",
+    color: "#3f6b64",
+    fontSize: "1rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  breathMain: {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    padding: "1.5rem",
+    boxSizing: "border-box",
+    gap: "1.75rem",
+    background: "#e7e0f5",
+    fontFamily:
+      "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+    color: "#5e4b8b",
+  },
+  backButton: {
+    position: "fixed",
+    top: "1rem",
+    left: "1rem",
+    padding: "0.5rem 1.1rem",
+    background: "rgba(255, 255, 255, 0.65)",
+    border: "1px solid #c9b8e8",
+    borderRadius: "999px",
+    color: "#5e4b8b",
+    fontSize: "1rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  breathTitle: {
+    fontSize: "1rem",
+    fontWeight: 600,
+    letterSpacing: "1px",
+    textTransform: "uppercase",
+    color: "#9784c0",
+  },
+  circleWrap: {
+    width: CIRCLE_BASE,
+    height: CIRCLE_BASE,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  breathCircle: {
+    width: CIRCLE_BASE,
+    height: CIRCLE_BASE,
+    borderRadius: "50%",
+    background: "radial-gradient(circle at 50% 40%, #c9b3ef, #a98fdf)",
+    boxShadow: "0 10px 30px rgba(120, 90, 180, 0.3)",
+    willChange: "transform",
+  },
+  breathWord: {
+    margin: 0,
+    minHeight: "2.4rem",
+    fontSize: "2rem",
+    fontWeight: 600,
+    color: "#5e4b8b",
+  },
+  patternRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: "0.75rem",
+  },
+  patternButton: {
+    padding: "0.7rem 1.25rem",
+    background: "rgba(255, 255, 255, 0.6)",
+    border: "1px solid #c9b8e8",
+    borderRadius: "999px",
+    color: "#5e4b8b",
+    fontSize: "1.05rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  patternButtonActive: {
+    background: "#9b7fd4",
+    borderColor: "#9b7fd4",
+    color: "#ffffff",
   },
   expandButton: {
     display: "block",
