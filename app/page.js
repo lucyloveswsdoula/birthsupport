@@ -186,7 +186,7 @@ const BREATHING_PATTERNS = {
 };
 const BREATHING_ORDER = ["slow", "fourSevenEight", "heehoo"];
 
-function BreathingGuide({ onBack }) {
+function BreathingGuide({ onBack, onQuestion }) {
   const [patternKey, setPatternKey] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
 
@@ -244,6 +244,8 @@ function BreathingGuide({ onBack }) {
           </button>
         ))}
       </div>
+
+      <QuestionFooter onClick={onQuestion} />
     </main>
   );
 }
@@ -331,7 +333,7 @@ const CHECKLIST_ITEMS = [
   "Camera charged",
 ];
 
-function ChecklistScreen({ checked, onToggle, onBack, bg }) {
+function ChecklistScreen({ checked, onToggle, onBack, bg, onQuestion }) {
   return (
     <main style={{ ...styles.checklistMain, ...(bg ? { background: bg } : {}) }}>
       <button type="button" onClick={onBack} style={styles.backButton}>
@@ -372,6 +374,8 @@ function ChecklistScreen({ checked, onToggle, onBack, bg }) {
           </li>
         ))}
       </ul>
+
+      <QuestionFooter onClick={onQuestion} />
     </main>
   );
 }
@@ -389,7 +393,7 @@ function makeDefaultSettings() {
   return { cards: true, affirmations: true, keepAwake: true, alerts: true };
 }
 
-function SettingsScreen({ settings, onToggle, onBack, bg, role, onChangeRole }) {
+function SettingsScreen({ settings, onToggle, onBack, bg, role, onChangeRole, onQuestion }) {
   return (
     <main style={{ ...styles.checklistMain, background: bg }}>
       <button type="button" onClick={onBack} style={styles.backButton}>
@@ -448,6 +452,8 @@ function SettingsScreen({ settings, onToggle, onBack, bg, role, onChangeRole }) 
           </button>
         </div>
       </div>
+
+      <QuestionFooter onClick={onQuestion} />
     </main>
   );
 }
@@ -479,6 +485,15 @@ function WelcomeScreen({ onPick }) {
         </button>
       </div>
     </main>
+  );
+}
+
+// A small, unobtrusive footer to reach the contacts screen from anywhere.
+function QuestionFooter({ onClick }) {
+  return (
+    <button type="button" onClick={onClick} style={styles.questionFooter}>
+      Have a question?
+    </button>
   );
 }
 
@@ -869,7 +884,12 @@ export default function Home() {
   // The breathing guide is just a different screen of this same component, so the
   // contraction timer keeps running underneath and its history is untouched.
   if (screen === "breathing") {
-    return <BreathingGuide onBack={() => setScreen("main")} />;
+    return (
+      <BreathingGuide
+        onBack={() => setScreen("main")}
+        onQuestion={() => setScreen("contacts")}
+      />
+    );
   }
   if (screen === "contacts") {
     return (
@@ -888,6 +908,7 @@ export default function Home() {
         onToggle={toggleChecklistItem}
         onBack={() => setScreen("main")}
         bg={subBg}
+        onQuestion={() => setScreen("contacts")}
       />
     );
   }
@@ -900,6 +921,7 @@ export default function Home() {
         bg={settingsBg}
         role={role}
         onChangeRole={setRole}
+        onQuestion={() => setScreen("contacts")}
       />
     );
   }
@@ -981,13 +1003,6 @@ export default function Home() {
             style={styles.footerLink}
           >
             Breathing Guide
-          </button>
-          <button
-            type="button"
-            onClick={() => setScreen("contacts")}
-            style={styles.footerLink}
-          >
-            Have a question?
           </button>
           <button
             type="button"
@@ -1080,6 +1095,8 @@ export default function Home() {
           )}
         </section>
       )}
+
+      <QuestionFooter onClick={() => setScreen("contacts")} />
     </main>
   );
 }
@@ -1092,7 +1109,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     textAlign: "center",
-    padding: "1.5rem",
+    padding: "1.5rem 1.5rem 4rem",
     boxSizing: "border-box",
     background: "#9ed0c6",
     fontFamily:
@@ -1373,7 +1390,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    padding: "4.5rem 1.5rem 2.5rem",
+    padding: "4.5rem 1.5rem 4.5rem",
     boxSizing: "border-box",
     gap: "1.25rem",
     fontFamily:
@@ -1578,6 +1595,23 @@ const styles = {
     gap: "0.6rem",
     marginTop: "0.5rem",
   },
+  questionFooter: {
+    position: "fixed",
+    bottom: "0.9rem",
+    left: "50%",
+    transform: "translateX(-50%)",
+    padding: "0.5rem 1.1rem",
+    background: "rgba(255, 255, 255, 0.78)",
+    border: "1px solid rgba(80, 80, 80, 0.18)",
+    borderRadius: "999px",
+    color: "#4f4f4f",
+    fontSize: "0.95rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+    zIndex: 20,
+  },
   footerLink: {
     padding: "0.8rem 1.5rem",
     background: "rgba(255, 255, 255, 0.72)",
@@ -1598,7 +1632,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     textAlign: "center",
-    padding: "1.5rem",
+    padding: "1.5rem 1.5rem 3.75rem",
     boxSizing: "border-box",
     gap: "1.75rem",
     background: "#f6bfd2",
