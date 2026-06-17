@@ -272,9 +272,9 @@ function smsHref(phone) {
   return `sms:${phone.replace(/[^\d+*#]/g, "")}`;
 }
 
-function ContactsScreen({ contacts, onChange, onBack }) {
+function ContactsScreen({ contacts, onChange, onBack, bg }) {
   return (
-    <main style={styles.contactsMain}>
+    <main style={{ ...styles.contactsMain, ...(bg ? { background: bg } : {}) }}>
       <button type="button" onClick={onBack} style={styles.backButton}>
         ← Back
       </button>
@@ -331,9 +331,9 @@ const CHECKLIST_ITEMS = [
   "Camera charged",
 ];
 
-function ChecklistScreen({ checked, onToggle, onBack }) {
+function ChecklistScreen({ checked, onToggle, onBack, bg }) {
   return (
-    <main style={styles.checklistMain}>
+    <main style={{ ...styles.checklistMain, ...(bg ? { background: bg } : {}) }}>
       <button type="button" onClick={onBack} style={styles.backButton}>
         ← Back
       </button>
@@ -389,9 +389,9 @@ function makeDefaultSettings() {
   return { cards: true, affirmations: true, keepAwake: true, alerts: true };
 }
 
-function SettingsScreen({ settings, onToggle, onBack }) {
+function SettingsScreen({ settings, onToggle, onBack, bg, role, onChangeRole }) {
   return (
-    <main style={{ ...styles.checklistMain, background: "#ddd0f0" }}>
+    <main style={{ ...styles.checklistMain, background: bg }}>
       <button type="button" onClick={onBack} style={styles.backButton}>
         ← Back
       </button>
@@ -422,6 +422,62 @@ function SettingsScreen({ settings, onToggle, onBack }) {
           );
         })}
       </div>
+
+      <div style={styles.roleSection}>
+        <div style={styles.roleHeading}>Your role</div>
+        <div style={styles.roleButtons}>
+          <button
+            type="button"
+            onClick={() => onChangeRole("mom")}
+            style={{
+              ...styles.roleButton,
+              ...(role === "mom" ? styles.roleButtonActive : {}),
+            }}
+          >
+            Mom or Partner
+          </button>
+          <button
+            type="button"
+            onClick={() => onChangeRole("doula")}
+            style={{
+              ...styles.roleButton,
+              ...(role === "doula" ? styles.roleButtonActive : {}),
+            }}
+          >
+            Doula
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+// --- Role / onboarding ---
+const ROLE_KEY = "birthsupport-role";
+
+function WelcomeScreen({ onPick }) {
+  return (
+    <main style={styles.welcomeMain}>
+      <h1 style={styles.welcomeTitle}>Birth Support</h1>
+      <p style={styles.welcomeText}>
+        Welcome. Let&apos;s set things up for you — who&apos;s using the app?
+      </p>
+      <div style={styles.welcomeButtons}>
+        <button
+          type="button"
+          onClick={() => onPick("mom")}
+          style={styles.welcomeButton}
+        >
+          I&apos;m a Mom or Partner
+        </button>
+        <button
+          type="button"
+          onClick={() => onPick("doula")}
+          style={styles.welcomeButton}
+        >
+          I&apos;m a Doula
+        </button>
+      </div>
     </main>
   );
 }
@@ -440,6 +496,7 @@ export default function Home() {
   const [contacts, setContacts] = useState(makeEmptyContacts); // saved phone numbers
   const [checklist, setChecklist] = useState(() => CHECKLIST_ITEMS.map(() => false));
   const [settings, setSettings] = useState(makeDefaultSettings); // feature on/off toggles
+  const [role, setRole] = useState(null); // null (not chosen) | "mom" | "doula"
   const [activeAlert, setActiveAlert] = useState(null); // null | "stage1" | "stage2"
   const [stage1Shown, setStage1Shown] = useState(false); // 4-1-1 nudge already shown?
   const [stage2Shown, setStage2Shown] = useState(false); // 3-1-1 nudge already shown?
@@ -462,6 +519,10 @@ export default function Home() {
           setActiveAlert(null);
           setStage1Shown(false);
           setStage2Shown(false);
+        } else if (test === "role") {
+          // Forget the saved role so the welcome screen shows again.
+          localStorage.removeItem(ROLE_KEY);
+          setRole(null);
         } else if (test === "411" || test === "311") {
           const g = test === "411" ? 240 : 180; // seconds between starts
           const n = test === "411" ? 15 : 18; // enough to span ~an hour
@@ -546,6 +607,10 @@ export default function Home() {
           alerts: savedSettings.alerts !== false,
         });
       }
+      const savedRole = localStorage.getItem(ROLE_KEY);
+      if (savedRole === "mom" || savedRole === "doula") {
+        setRole(savedRole);
+      }
     } catch {
       // If anything is off, just start fresh.
     }
@@ -617,6 +682,17 @@ export default function Home() {
       // Saving is best-effort; ignore failures.
     }
   }, [settings, hydrated]);
+
+  // Save the chosen role on the device.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      if (role) localStorage.setItem(ROLE_KEY, role);
+      else localStorage.removeItem(ROLE_KEY);
+    } catch {
+      // Saving is best-effort; ignore failures.
+    }
+  }, [role, hydrated]);
 
   // Re-check the pattern whenever a new contraction is logged (and once on load).
   // Each nudge shows only once; the 3-1-1 nudge can still appear after the 4-1-1 one.
@@ -761,6 +837,21 @@ export default function Home() {
   const lastContraction = history[0];
   const showHistory = phase !== ACTIVE && history.length > 0;
 
+  // Role tint: Mom/Partner keeps the custom colors; Doula re-tints to soft teal.
+  const isDoula = role === "doula";
+  const homeBg = isDoula ? "#86c9bd" : "#9ed0c6";
+  const subBg = isDoula ? "#86c9bd" : null; // contacts/checklist (null = green floral)
+  const settingsBg = isDoula ? "#86c9bd" : "#ddd0f0";
+
+  // Wait for saved data before deciding, to avoid flashing the welcome screen.
+  if (!hydrated) {
+    return <main style={styles.bootMain} />;
+  }
+  // First launch (no role saved yet): show the welcome / role picker.
+  if (!role) {
+    return <WelcomeScreen onPick={(r) => setRole(r)} />;
+  }
+
   // The breathing guide is just a different screen of this same component, so the
   // contraction timer keeps running underneath and its history is untouched.
   if (screen === "breathing") {
@@ -772,6 +863,7 @@ export default function Home() {
         contacts={contacts}
         onChange={updateContact}
         onBack={() => setScreen("main")}
+        bg={subBg}
       />
     );
   }
@@ -781,6 +873,7 @@ export default function Home() {
         checked={checklist}
         onToggle={toggleChecklistItem}
         onBack={() => setScreen("main")}
+        bg={subBg}
       />
     );
   }
@@ -790,12 +883,15 @@ export default function Home() {
         settings={settings}
         onToggle={toggleSetting}
         onBack={() => setScreen("main")}
+        bg={settingsBg}
+        role={role}
+        onChangeRole={setRole}
       />
     );
   }
 
   return (
-    <main style={styles.main}>
+    <main style={{ ...styles.main, background: homeBg }}>
       <header style={styles.title}>Birth Support</header>
 
       {activeAlert && settings.alerts && (
@@ -1344,6 +1440,94 @@ const styles = {
     background: "#ffffff",
     boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
     transition: "left 0.2s ease",
+  },
+  roleSection: {
+    width: "min(92vw, 380px)",
+    marginTop: "0.5rem",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.75rem",
+  },
+  roleHeading: {
+    fontSize: "1.1rem",
+    fontWeight: 600,
+    color: "#2f5a53",
+    textAlign: "center",
+  },
+  roleButtons: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.6rem",
+  },
+  roleButton: {
+    padding: "0.85rem 1.25rem",
+    background: "rgba(255, 255, 255, 0.72)",
+    border: "1px solid rgba(80, 80, 80, 0.18)",
+    borderRadius: "999px",
+    color: "#4f4f4f",
+    fontSize: "1.05rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "transform 0.15s ease, background 0.2s ease",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  roleButtonActive: {
+    background: "#4e9e90",
+    borderColor: "#4e9e90",
+    color: "#ffffff",
+  },
+  bootMain: {
+    minHeight: "100vh",
+    background: "#9ed0c6",
+  },
+  welcomeMain: {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    padding: "1.5rem",
+    boxSizing: "border-box",
+    gap: "1.5rem",
+    background: "#f7e3ec",
+    color: "#5a4650",
+    fontFamily: "Georgia, 'Times New Roman', Times, serif",
+  },
+  welcomeTitle: {
+    margin: 0,
+    fontSize: "2.6rem",
+    fontWeight: 700,
+    color: "#5a4650",
+    letterSpacing: "0.5px",
+  },
+  welcomeText: {
+    margin: 0,
+    maxWidth: "20rem",
+    fontSize: "1.2rem",
+    lineHeight: 1.5,
+    color: "#7a6470",
+  },
+  welcomeButtons: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    width: "min(85vw, 320px)",
+  },
+  welcomeButton: {
+    padding: "1.1rem 1.5rem",
+    background: "#e08aa0",
+    border: "none",
+    borderRadius: "999px",
+    color: "#ffffff",
+    fontSize: "1.2rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    boxShadow: "0 6px 18px rgba(180, 110, 130, 0.3)",
+    transition: "transform 0.15s ease, background 0.2s ease",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
   },
   footerLinks: {
     display: "flex",
