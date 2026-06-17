@@ -105,6 +105,28 @@ function formatDuration(totalSeconds) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+// Build a simple, readable text summary of the contraction history to share.
+function buildHistorySummary(history) {
+  const dateStr = new Date().toLocaleDateString();
+  const count = history.length;
+  const lines = [
+    `Contraction history — ${dateStr}`,
+    `${count} contraction${count === 1 ? "" : "s"} logged`,
+    "",
+  ];
+  for (const c of history) {
+    // newest first, as stored
+    const time = new Date(c.startTime).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    let line = `${time} — lasted ${formatDuration(c.durationSec)}`;
+    if (c.gapSec != null) line += `, ${formatDuration(c.gapSec)} apart`;
+    lines.push(line);
+  }
+  return lines.join("\n");
+}
+
 // How many contractions each partner support card stays before switching.
 const CARD_SPAN = 2;
 
@@ -506,6 +528,7 @@ export default function Home() {
   const [cardShown, setCardShown] = useState(0); // how many times current card has shown
   const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
+  const [shareMsg, setShareMsg] = useState(""); // small confirmation after sharing/copying
   const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
   const [historyExpanded, setHistoryExpanded] = useState(false); // show all history rows?
   const [screen, setScreen] = useState("main"); // "main" | "breathing" | "contacts" | "checklist"
@@ -805,6 +828,28 @@ export default function Home() {
     setActiveAlert(null);
   }
 
+  async function shareHistory() {
+    if (history.length === 0) return;
+    const text = buildHistorySummary(history);
+    // On phones that support it, use the built-in share sheet.
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: "Contraction history", text });
+      } catch {
+        // user cancelled or it failed — do nothing
+      }
+      return;
+    }
+    // Otherwise copy to the clipboard so it can be pasted into a message.
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareMsg("History copied — you can paste it into a message.");
+    } catch {
+      setShareMsg("Couldn't copy automatically — please copy your history manually.");
+    }
+    setTimeout(() => setShareMsg(""), 4000);
+  }
+
   function updateContact(id, field, value) {
     setContacts((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
   }
@@ -1061,6 +1106,11 @@ export default function Home() {
               </svg>
             </button>
           )}
+
+          <button type="button" onClick={shareHistory} style={styles.shareButton}>
+            Share History
+          </button>
+          {shareMsg && <p style={styles.shareMsg}>{shareMsg}</p>}
 
           {confirmingDelete ? (
             <div style={styles.confirmBox}>
@@ -1719,9 +1769,31 @@ const styles = {
     WebkitTapHighlightColor: "transparent",
     touchAction: "manipulation",
   },
-  deleteButton: {
+  shareButton: {
     display: "block",
     margin: "1.25rem auto 0 auto",
+    padding: "0.7rem 1.4rem",
+    background: "rgba(255, 255, 255, 0.72)",
+    border: "1px solid rgba(80, 80, 80, 0.18)",
+    borderRadius: "999px",
+    color: "#4f4f4f",
+    fontSize: "1rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "transform 0.15s ease, background 0.2s ease",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  shareMsg: {
+    margin: "0.6rem auto 0 auto",
+    maxWidth: "20rem",
+    fontSize: "0.95rem",
+    color: "#3f5f5a",
+    textAlign: "center",
+  },
+  deleteButton: {
+    display: "block",
+    margin: "0.75rem auto 0 auto",
     padding: "0.7rem 1.4rem",
     background: "rgba(255, 255, 255, 0.55)",
     border: "1px solid rgba(80, 80, 80, 0.15)",
