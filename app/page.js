@@ -391,7 +391,7 @@ function makeDefaultSettings() {
 
 function SettingsScreen({ settings, onToggle, onBack }) {
   return (
-    <main style={styles.checklistMain}>
+    <main style={{ ...styles.checklistMain, background: "#ddd0f0" }}>
       <button type="button" onClick={onBack} style={styles.backButton}>
         ← Back
       </button>
