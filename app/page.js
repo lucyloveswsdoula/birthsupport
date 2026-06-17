@@ -1229,7 +1229,7 @@ const styles = {
     padding: "1.5rem",
     boxSizing: "border-box",
     gap: "1.75rem",
-    background: "#fbe2ec",
+    background: "#f6bfd2",
     fontFamily:
       "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
     color: "#5e4b8b",
