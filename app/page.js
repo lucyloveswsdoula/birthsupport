@@ -321,6 +321,61 @@ function ContactsScreen({ contacts, onChange, onBack }) {
   );
 }
 
+// --- Prep checklist ---
+const CHECKLIST_KEY = "birthsupport-checklist";
+const CHECKLIST_ITEMS = [
+  "Bag packed and ready",
+  "Midwife number saved",
+  "Playlist ready",
+  "Birth plan printed",
+  "Camera charged",
+];
+
+function ChecklistScreen({ checked, onToggle, onBack }) {
+  return (
+    <main style={styles.checklistMain}>
+      <button type="button" onClick={onBack} style={styles.backButton}>
+        ← Back
+      </button>
+
+      <div style={styles.contactsTitle}>Prep Checklist</div>
+
+      <ul style={styles.checklistList}>
+        {CHECKLIST_ITEMS.map((item, i) => (
+          <li key={i}>
+            <button
+              type="button"
+              onClick={() => onToggle(i)}
+              style={{
+                ...styles.checklistRow,
+                ...(checked[i] ? styles.checklistRowDone : {}),
+              }}
+              aria-pressed={checked[i]}
+            >
+              <span
+                style={{
+                  ...styles.checkbox,
+                  ...(checked[i] ? styles.checkboxDone : {}),
+                }}
+              >
+                {checked[i] ? "✓" : ""}
+              </span>
+              <span
+                style={{
+                  ...styles.checklistText,
+                  ...(checked[i] ? styles.checklistTextDone : {}),
+                }}
+              >
+                {item}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+
 export default function Home() {
   const [phase, setPhase] = useState(READY);
   const [elapsed, setElapsed] = useState(0); // seconds in the current contraction
@@ -331,8 +386,9 @@ export default function Home() {
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
   const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
   const [historyExpanded, setHistoryExpanded] = useState(false); // show all history rows?
-  const [screen, setScreen] = useState("main"); // "main" | "breathing" | "contacts"
+  const [screen, setScreen] = useState("main"); // "main" | "breathing" | "contacts" | "checklist"
   const [contacts, setContacts] = useState(makeEmptyContacts); // saved phone numbers
+  const [checklist, setChecklist] = useState(() => CHECKLIST_ITEMS.map(() => false));
   const [activeAlert, setActiveAlert] = useState(null); // null | "stage1" | "stage2"
   const [stage1Shown, setStage1Shown] = useState(false); // 4-1-1 nudge already shown?
   const [stage2Shown, setStage2Shown] = useState(false); // 3-1-1 nudge already shown?
@@ -423,6 +479,11 @@ export default function Home() {
         }
         setContacts(merged);
       }
+      const rawChecklist = localStorage.getItem(CHECKLIST_KEY);
+      const savedChecklist = rawChecklist ? JSON.parse(rawChecklist) : null;
+      if (Array.isArray(savedChecklist)) {
+        setChecklist(CHECKLIST_ITEMS.map((_, i) => savedChecklist[i] === true));
+      }
     } catch {
       // If anything is off, just start fresh.
     }
@@ -474,6 +535,16 @@ export default function Home() {
       // Saving is best-effort; ignore failures.
     }
   }, [contacts, hydrated]);
+
+  // Save the prep checklist on the device whenever it changes.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(CHECKLIST_KEY, JSON.stringify(checklist));
+    } catch {
+      // Saving is best-effort; ignore failures.
+    }
+  }, [checklist, hydrated]);
 
   // Re-check the pattern whenever a new contraction is logged (and once on load).
   // Each nudge shows only once; the 3-1-1 nudge can still appear after the 4-1-1 one.
@@ -562,6 +633,10 @@ export default function Home() {
     setContacts((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
   }
 
+  function toggleChecklistItem(index) {
+    setChecklist((prev) => prev.map((v, i) => (i === index ? !v : v)));
+  }
+
   function startContraction() {
     setConfirmingDelete(false);
     setElapsed(0);
@@ -617,6 +692,15 @@ export default function Home() {
       <ContactsScreen
         contacts={contacts}
         onChange={updateContact}
+        onBack={() => setScreen("main")}
+      />
+    );
+  }
+  if (screen === "checklist") {
+    return (
+      <ChecklistScreen
+        checked={checklist}
+        onToggle={toggleChecklistItem}
         onBack={() => setScreen("main")}
       />
     );
@@ -696,6 +780,13 @@ export default function Home() {
             style={styles.footerLink}
           >
             Have a question?
+          </button>
+          <button
+            type="button"
+            onClick={() => setScreen("checklist")}
+            style={styles.footerLink}
+          >
+            Prep Checklist
           </button>
         </div>
       </section>
@@ -1041,6 +1132,72 @@ const styles = {
     fontWeight: 600,
     textDecoration: "none",
     WebkitTapHighlightColor: "transparent",
+  },
+  checklistMain: {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "4.5rem 1.5rem 2.5rem",
+    boxSizing: "border-box",
+    gap: "1.25rem",
+    fontFamily:
+      "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+    color: "#34564f",
+  },
+  checklistList: {
+    listStyle: "none",
+    margin: 0,
+    padding: 0,
+    width: "min(92vw, 380px)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.75rem",
+  },
+  checklistRow: {
+    width: "100%",
+    boxSizing: "border-box",
+    display: "flex",
+    alignItems: "center",
+    gap: "1rem",
+    padding: "1rem 1.1rem",
+    background: "rgba(255, 255, 255, 0.65)",
+    border: "1px solid #8fc4ba",
+    borderRadius: "14px",
+    cursor: "pointer",
+    textAlign: "left",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  checklistRowDone: {
+    background: "rgba(78, 158, 144, 0.18)",
+  },
+  checkbox: {
+    flexShrink: 0,
+    width: "28px",
+    height: "28px",
+    borderRadius: "7px",
+    border: "2px solid #4e9e90",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "1.1rem",
+    fontWeight: 700,
+    color: "#ffffff",
+    background: "transparent",
+    lineHeight: 1,
+  },
+  checkboxDone: {
+    background: "#4e9e90",
+  },
+  checklistText: {
+    fontSize: "1.2rem",
+    fontWeight: 600,
+    color: "#2f5a53",
+  },
+  checklistTextDone: {
+    textDecoration: "line-through",
+    color: "#5a8079",
   },
   footerLinks: {
     display: "flex",
