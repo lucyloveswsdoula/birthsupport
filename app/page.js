@@ -504,7 +504,7 @@ const ROLE_KEY = "birthsupport-role";
 function WelcomeScreen({ onPick }) {
   return (
     <main style={styles.welcomeMain}>
-      <h1 style={styles.welcomeTitle}>Birth Support</h1>
+      <h1 style={styles.welcomeTitle}>Time Contractions Supported</h1>
       <p style={styles.welcomeText}>
         Welcome. Let&apos;s set things up for you — who&apos;s using the app?
       </p>
@@ -1025,7 +1025,7 @@ export default function Home() {
 
   return (
     <main style={{ ...styles.main, background: homeBg }}>
-      <header style={styles.title}>Birth Support</header>
+      <header style={styles.title}>Time Contractions Supported</header>
 
       <button
         type="button"

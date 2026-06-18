@@ -1,12 +1,12 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Birth Support",
+  title: "Time Contractions Supported",
   description: "A calm companion for labor: contraction timer, breathing, and support.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Birth Support",
+    title: "Time Contractions Supported",
   },
   other: {
     // Legacy iOS tag so older iPhones also open it full-screen from the home screen.

@@ -1,7 +1,7 @@
 export default function manifest() {
   return {
-    name: "Birth Support",
-    short_name: "Birth Support",
+    name: "Time Contractions Supported",
+    short_name: "Contractions",
     description: "A calm companion for labor: contraction timer, breathing, and support.",
     start_url: "/",
     display: "standalone",
