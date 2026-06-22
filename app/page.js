@@ -547,6 +547,7 @@ export default function Home() {
   const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
   const [menuOpen, setMenuOpen] = useState(false); // hamburger menu open?
+  const [titleVisible, setTitleVisible] = useState(true); // show the top title at first
   const [soundKey, setSoundKey] = useState("silence"); // background sound choice
   const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
   const [historyExpanded, setHistoryExpanded] = useState(false); // show all history rows?
@@ -827,6 +828,12 @@ export default function Home() {
     };
   }, []);
 
+  // Show the app title at the top for the first minute, then fade it away.
+  useEffect(() => {
+    const id = setTimeout(() => setTitleVisible(false), 60000);
+    return () => clearTimeout(id);
+  }, []);
+
   // Keep the phone screen awake while the app is open and visible (if enabled).
   useEffect(() => {
     if (typeof navigator === "undefined" || !("wakeLock" in navigator)) {
@@ -1025,7 +1032,9 @@ export default function Home() {
 
   return (
     <main style={{ ...styles.main, background: homeBg }}>
-      <header style={styles.title}>Time Contractions Supported</header>
+      <header style={{ ...styles.title, opacity: titleVisible ? 1 : 0 }}>
+        Time Contractions Supported
+      </header>
 
       <button
         type="button"
@@ -1245,6 +1254,8 @@ const styles = {
     letterSpacing: "1px",
     textTransform: "uppercase",
     color: "#c99aa6",
+    transition: "opacity 1s ease",
+    pointerEvents: "none",
   },
   hamburger: {
     position: "fixed",
