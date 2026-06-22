@@ -404,6 +404,44 @@ const SOUND_OPTIONS = [
   { id: "white-noise", label: "White noise", src: "/sounds/white-noise.mp3" },
 ];
 
+// A collapsible Settings section: a title + the current choice + a down arrow;
+// tapping reveals the options. Reusable for role, sound, future voices, etc.
+function Collapsible({ title, value, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={styles.collapsible}>
+      <button
+        type="button"
+        style={styles.collapsibleHeader}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+      >
+        <span style={styles.collapsibleTitle}>{title}</span>
+        <span style={styles.collapsibleRight}>
+          {value ? <span style={styles.collapsibleValue}>{value}</span> : null}
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#2f5a53"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              transform: open ? "rotate(180deg)" : "none",
+              transition: "transform 0.2s ease",
+            }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
+      </button>
+      {open && <div style={styles.collapsibleBody}>{children}</div>}
+    </div>
+  );
+}
+
 function SettingsScreen({
   settings,
   onToggle,
@@ -415,6 +453,8 @@ function SettingsScreen({
   onChangeSound,
   onQuestion,
 }) {
+  const roleLabel = role === "doula" ? "Doula" : "Mom or Partner";
+  const soundLabel = (SOUND_OPTIONS.find((s) => s.id === soundKey) || {}).label;
   return (
     <main style={{ ...styles.checklistMain, background: bg }}>
       <button type="button" onClick={onBack} style={styles.backButton}>
@@ -448,50 +488,44 @@ function SettingsScreen({
         })}
       </div>
 
-      <div style={styles.roleSection}>
-        <div style={styles.roleHeading}>Your role</div>
-        <div style={styles.roleButtons}>
-          <button
-            type="button"
-            onClick={() => onChangeRole("mom")}
-            style={{
-              ...styles.roleButton,
-              ...(role === "mom" ? styles.roleButtonActive : {}),
-            }}
-          >
-            Mom or Partner
-          </button>
-          <button
-            type="button"
-            onClick={() => onChangeRole("doula")}
-            style={{
-              ...styles.roleButton,
-              ...(role === "doula" ? styles.roleButtonActive : {}),
-            }}
-          >
-            Doula
-          </button>
-        </div>
-      </div>
+      <Collapsible title="Your role" value={roleLabel}>
+        <button
+          type="button"
+          onClick={() => onChangeRole("mom")}
+          style={{
+            ...styles.roleButton,
+            ...(role === "mom" ? styles.roleButtonActive : {}),
+          }}
+        >
+          Mom or Partner
+        </button>
+        <button
+          type="button"
+          onClick={() => onChangeRole("doula")}
+          style={{
+            ...styles.roleButton,
+            ...(role === "doula" ? styles.roleButtonActive : {}),
+          }}
+        >
+          Doula
+        </button>
+      </Collapsible>
 
-      <div style={styles.roleSection}>
-        <div style={styles.roleHeading}>Background sound</div>
-        <div style={styles.roleButtons}>
-          {SOUND_OPTIONS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => onChangeSound(s.id)}
-              style={{
-                ...styles.roleButton,
-                ...(soundKey === s.id ? styles.roleButtonActive : {}),
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Collapsible title="Background sound" value={soundLabel}>
+        {SOUND_OPTIONS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onChangeSound(s.id)}
+            style={{
+              ...styles.roleButton,
+              ...(soundKey === s.id ? styles.roleButtonActive : {}),
+            }}
+          >
+            {s.label}
+          </button>
+        ))}
+      </Collapsible>
 
       <QuestionFooter onClick={onQuestion} />
     </main>
@@ -1696,6 +1730,48 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: "0.75rem",
+  },
+  collapsible: {
+    width: "min(92vw, 380px)",
+    background: "rgba(255, 255, 255, 0.65)",
+    border: "1px solid #8fc4ba",
+    borderRadius: "14px",
+    overflow: "hidden",
+  },
+  collapsibleHeader: {
+    width: "100%",
+    boxSizing: "border-box",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "0.75rem",
+    padding: "1rem 1.1rem",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    textAlign: "left",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  collapsibleTitle: {
+    fontSize: "1.1rem",
+    fontWeight: 600,
+    color: "#2f5a53",
+  },
+  collapsibleRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+  },
+  collapsibleValue: {
+    fontSize: "0.95rem",
+    color: "#5a8079",
+  },
+  collapsibleBody: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.6rem",
+    padding: "0 1.1rem 1.1rem 1.1rem",
   },
   roleHeading: {
     fontSize: "1.1rem",
