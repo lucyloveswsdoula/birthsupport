@@ -396,6 +396,7 @@ function makeDefaultSettings() {
 // Background sounds. Files go in public/sounds/ (added by the user later); if a
 // file is missing it simply won't play — the app keeps working.
 const SOUND_KEY = "birthsupport-sound";
+const SOUND_PROMPT_KEY = "birthsupport-sound-prompt-seen";
 const SOUND_OPTIONS = [
   { id: "silence", label: "Silence", src: null },
   { id: "ocean", label: "Ocean waves", src: "/sounds/ocean.mp3" },
@@ -582,6 +583,8 @@ export default function Home() {
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
   const [menuOpen, setMenuOpen] = useState(false); // hamburger menu open?
   const [titleVisible, setTitleVisible] = useState(true); // show the top title at first
+  const [showSoundPrompt, setShowSoundPrompt] = useState(false); // "Want a background sound?"
+  const [soundPromptSeen, setSoundPromptSeen] = useState(false); // already shown before?
   const [soundKey, setSoundKey] = useState("silence"); // background sound choice
   const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
   const [historyExpanded, setHistoryExpanded] = useState(false); // show all history rows?
@@ -600,6 +603,8 @@ export default function Home() {
   const audioRef = useRef(null); // background sound player
   const soundKeyRef = useRef("silence"); // latest sound choice for event handlers
   soundKeyRef.current = soundKey;
+  const soundPromptSeenRef = useRef(false); // latest "seen" value for the timer
+  soundPromptSeenRef.current = soundPromptSeen;
 
   // When the app opens, load any saved data from this phone.
   useEffect(() => {
@@ -710,6 +715,9 @@ export default function Home() {
       const savedSound = localStorage.getItem(SOUND_KEY);
       if (savedSound && SOUND_OPTIONS.some((s) => s.id === savedSound)) {
         setSoundKey(savedSound);
+      }
+      if (localStorage.getItem(SOUND_PROMPT_KEY) === "1") {
+        setSoundPromptSeen(true);
       }
     } catch {
       // If anything is off, just start fresh.
@@ -868,6 +876,27 @@ export default function Home() {
     return () => clearTimeout(id);
   }, []);
 
+  // After 20 seconds, gently offer a background sound (only if none is chosen
+  // yet and the offer hasn't been shown before).
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (!soundPromptSeenRef.current && soundKeyRef.current === "silence") {
+        setShowSoundPrompt(true);
+      }
+    }, 20000);
+    return () => clearTimeout(id);
+  }, []);
+
+  // Remember that the sound offer has been shown so it doesn't keep popping up.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      if (soundPromptSeen) localStorage.setItem(SOUND_PROMPT_KEY, "1");
+    } catch {
+      // Saving is best-effort; ignore failures.
+    }
+  }, [soundPromptSeen, hydrated]);
+
   // Keep the phone screen awake while the app is open and visible (if enabled).
   useEffect(() => {
     if (typeof navigator === "undefined" || !("wakeLock" in navigator)) {
@@ -939,6 +968,17 @@ export default function Home() {
 
   function dismissAlert() {
     setActiveAlert(null);
+  }
+
+  function dismissSoundPrompt() {
+    setShowSoundPrompt(false);
+    setSoundPromptSeen(true);
+  }
+
+  function pickSoundFromPrompt(id) {
+    setSoundKey(id);
+    setShowSoundPrompt(false);
+    setSoundPromptSeen(true);
   }
 
   function updateContact(id, field, value) {
@@ -1118,6 +1158,34 @@ export default function Home() {
         </>
       )}
 
+      {showSoundPrompt && (
+        <div style={styles.promptBackdrop}>
+          <div style={styles.promptCard}>
+            <button
+              type="button"
+              onClick={dismissSoundPrompt}
+              style={styles.promptClose}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <p style={styles.promptText}>Want a background sound?</p>
+            <div style={styles.promptButtons}>
+              {SOUND_OPTIONS.filter((s) => s.id !== "silence").map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => pickSoundFromPrompt(s.id)}
+                  style={styles.promptSoundButton}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeAlert && settings.alerts && (
         <div style={styles.alertBox} role="status">
           <p style={styles.alertHeadline}>{ALERT_MESSAGES[activeAlert].headline}</p>
@@ -1290,6 +1358,67 @@ const styles = {
     color: "#c99aa6",
     transition: "opacity 1s ease",
     pointerEvents: "none",
+  },
+  promptBackdrop: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 50,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "1.5rem",
+    background: "rgba(0, 0, 0, 0.35)",
+  },
+  promptCard: {
+    position: "relative",
+    width: "min(88vw, 340px)",
+    boxSizing: "border-box",
+    padding: "1.75rem 1.25rem 1.5rem",
+    background: "#ffffff",
+    borderRadius: "18px",
+    boxShadow: "0 12px 32px rgba(0, 0, 0, 0.25)",
+    textAlign: "center",
+  },
+  promptClose: {
+    position: "absolute",
+    top: "0.6rem",
+    right: "0.7rem",
+    width: "2rem",
+    height: "2rem",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "transparent",
+    border: "none",
+    borderRadius: "50%",
+    color: "#9a9a9a",
+    fontSize: "1.1rem",
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
+  },
+  promptText: {
+    margin: "0 0 1.1rem 0",
+    fontSize: "1.3rem",
+    fontWeight: 600,
+    color: "#4f4347",
+  },
+  promptButtons: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.6rem",
+  },
+  promptSoundButton: {
+    padding: "0.85rem 1.25rem",
+    background: "#4e9e90",
+    border: "none",
+    borderRadius: "999px",
+    color: "#ffffff",
+    fontSize: "1.05rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
   },
   hamburger: {
     position: "fixed",
