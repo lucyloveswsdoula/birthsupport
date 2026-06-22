@@ -973,14 +973,14 @@ export default function Home() {
   }, []);
 
 
-  // After 20 seconds, gently offer a background sound (only if none is chosen
+  // After 10 seconds, gently offer a background sound (only if none is chosen
   // yet and the offer hasn't been shown before).
   useEffect(() => {
     const id = setTimeout(() => {
       if (!soundPromptSeenRef.current && soundKeyRef.current === "silence") {
         setShowSoundPrompt(true);
       }
-    }, 20000);
+    }, 10000);
     return () => clearTimeout(id);
   }, []);
 
