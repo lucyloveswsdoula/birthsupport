@@ -1002,11 +1002,11 @@ export default function Home() {
       ? Math.max(0, Math.floor((now - history[0].startTime) / 1000))
       : 0;
 
-  // Role tint: Mom/Partner keeps the custom colors; Doula re-tints to soft teal.
-  const isDoula = role === "doula";
-  const homeBg = isDoula ? "#86c9bd" : "#9ed0c6";
-  const subBg = isDoula ? "#86c9bd" : null; // contacts/checklist (null = green floral)
-  const settingsBg = isDoula ? "#86c9bd" : "#ddd0f0";
+  // Mom/Partner and Doula now look the same (the soft teal theme on every
+  // screen). The roles are kept for a future price difference, not the look.
+  const homeBg = "#86c9bd";
+  const subBg = "#86c9bd"; // contacts / checklist
+  const settingsBg = "#86c9bd";
 
   // Wait for saved data before deciding, to avoid flashing the welcome screen.
   if (!hydrated) {
