@@ -661,7 +661,6 @@ export default function Home() {
   const [currentCard, setCurrentCard] = useState(null); // card shown on rest screen
   const [confirmingDelete, setConfirmingDelete] = useState(false); // showing "Are you sure?"
   const [menuOpen, setMenuOpen] = useState(false); // hamburger menu open?
-  const [titleVisible, setTitleVisible] = useState(true); // show the top title at first
   const [showSoundPrompt, setShowSoundPrompt] = useState(false); // "Want a background sound?"
   const [soundPromptSeen, setSoundPromptSeen] = useState(false); // already shown before?
   const [soundKey, setSoundKey] = useState("silence"); // background sound choice
@@ -1111,7 +1110,6 @@ export default function Home() {
 
   function startContraction() {
     setConfirmingDelete(false);
-    setTitleVisible(false); // hide the app title once she starts timing
     setElapsed(0);
     startRef.current = Date.now();
     intervalRef.current = setInterval(() => {
@@ -1227,10 +1225,6 @@ export default function Home() {
 
   return (
     <main style={{ ...styles.main, background: homeBg }}>
-      <header style={{ ...styles.title, opacity: titleVisible ? 1 : 0 }}>
-        Time Contractions Supported
-      </header>
-
       <button
         type="button"
         style={styles.hamburger}
@@ -1868,21 +1862,21 @@ const styles = {
     listStyle: "none",
     margin: 0,
     padding: 0,
-    width: "min(92vw, 380px)",
+    width: "min(88vw, 340px)",
     display: "flex",
     flexDirection: "column",
-    gap: "0.75rem",
+    gap: "0.55rem",
   },
   checklistRow: {
     width: "100%",
     boxSizing: "border-box",
     display: "flex",
     alignItems: "center",
-    gap: "1rem",
-    padding: "1rem 1.1rem",
+    gap: "0.8rem",
+    padding: "0.7rem 0.9rem",
     background: "rgba(255, 255, 255, 0.65)",
     border: "1px solid #8fc4ba",
-    borderRadius: "14px",
+    borderRadius: "12px",
     cursor: "pointer",
     textAlign: "left",
     WebkitTapHighlightColor: "transparent",
@@ -1893,14 +1887,14 @@ const styles = {
   },
   checkbox: {
     flexShrink: 0,
-    width: "28px",
-    height: "28px",
-    borderRadius: "7px",
+    width: "23px",
+    height: "23px",
+    borderRadius: "6px",
     border: "2px solid #4e9e90",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "1.1rem",
+    fontSize: "0.95rem",
     fontWeight: 700,
     color: "#ffffff",
     background: "transparent",
@@ -1910,7 +1904,7 @@ const styles = {
     background: "#4e9e90",
   },
   checklistText: {
-    fontSize: "1.2rem",
+    fontSize: "1.02rem",
     fontWeight: 600,
     color: "#2f5a53",
   },
@@ -1924,7 +1918,7 @@ const styles = {
     border: "none",
     background: "transparent",
     outline: "none",
-    fontSize: "1.2rem",
+    fontSize: "1.02rem",
     fontWeight: 600,
     color: "#2f5a53",
   },
