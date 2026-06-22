@@ -325,6 +325,7 @@ function ContactsScreen({ contacts, onChange, onBack, bg }) {
 
 // --- Prep checklist ---
 const CHECKLIST_KEY = "birthsupport-checklist";
+const CHECKLIST_CUSTOM_KEY = "birthsupport-checklist-custom";
 const CHECKLIST_ITEMS = [
   "Bag packed and ready",
   "Midwife number saved",
@@ -333,7 +334,32 @@ const CHECKLIST_ITEMS = [
   "Camera charged",
 ];
 
-function ChecklistScreen({ checked, onToggle, onBack, bg, onQuestion }) {
+// Unique ids for the user's own added checklist items.
+let customIdCounter = 0;
+function nextCustomId() {
+  customIdCounter += 1;
+  return `custom-${customIdCounter}`;
+}
+
+// Always keep exactly one empty slot at the end so a new one appears as they fill in.
+function ensureTrailingEmpty(list) {
+  if (list.length === 0 || list[list.length - 1].text.trim() !== "") {
+    return [...list, { id: nextCustomId(), text: "", checked: false }];
+  }
+  return list;
+}
+
+function ChecklistScreen({
+  checked,
+  onToggle,
+  onBack,
+  bg,
+  onQuestion,
+  customItems,
+  onCustomChange,
+  onCustomToggle,
+  onCustomRemove,
+}) {
   return (
     <main style={{ ...styles.checklistMain, ...(bg ? { background: bg } : {}) }}>
       <button type="button" onClick={onBack} style={styles.backButton}>
@@ -373,6 +399,59 @@ function ChecklistScreen({ checked, onToggle, onBack, bg, onQuestion }) {
             </button>
           </li>
         ))}
+
+        {customItems.map((item) => {
+          const filled = item.text.trim() !== "";
+          return (
+            <li key={item.id}>
+              <div
+                style={{
+                  ...styles.checklistRow,
+                  cursor: "default",
+                  ...(filled && item.checked ? styles.checklistRowDone : {}),
+                }}
+              >
+                {filled ? (
+                  <button
+                    type="button"
+                    onClick={() => onCustomToggle(item.id)}
+                    aria-pressed={item.checked}
+                    style={{
+                      ...styles.checkbox,
+                      ...(item.checked ? styles.checkboxDone : {}),
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    {item.checked ? "✓" : ""}
+                  </button>
+                ) : (
+                  <span style={{ ...styles.checkbox, opacity: 0.35 }} />
+                )}
+                <input
+                  type="text"
+                  value={item.text}
+                  onChange={(e) => onCustomChange(item.id, e.target.value)}
+                  placeholder="Add your own…"
+                  style={{
+                    ...styles.customInput,
+                    ...(filled && item.checked ? styles.checklistTextDone : {}),
+                  }}
+                />
+                {filled && (
+                  <button
+                    type="button"
+                    onClick={() => onCustomRemove(item.id)}
+                    aria-label="Remove"
+                    style={styles.customRemove}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
       <QuestionFooter onClick={onQuestion} />
@@ -591,6 +670,9 @@ export default function Home() {
   const [screen, setScreen] = useState("main"); // "main" | "breathing" | "contacts" | "checklist"
   const [contacts, setContacts] = useState(makeEmptyContacts); // saved phone numbers
   const [checklist, setChecklist] = useState(() => CHECKLIST_ITEMS.map(() => false));
+  const [customChecklist, setCustomChecklist] = useState(() => [
+    { id: nextCustomId(), text: "", checked: false },
+  ]);
   const [settings, setSettings] = useState(makeDefaultSettings); // feature on/off toggles
   const [role, setRole] = useState(null); // null (not chosen) | "mom" | "doula"
   const [activeAlert, setActiveAlert] = useState(null); // null | "stage1" | "stage2"
@@ -697,6 +779,14 @@ export default function Home() {
       if (Array.isArray(savedChecklist)) {
         setChecklist(CHECKLIST_ITEMS.map((_, i) => savedChecklist[i] === true));
       }
+      const rawCustom = localStorage.getItem(CHECKLIST_CUSTOM_KEY);
+      const savedCustom = rawCustom ? JSON.parse(rawCustom) : null;
+      if (Array.isArray(savedCustom)) {
+        const items = savedCustom
+          .filter((x) => x && typeof x.text === "string")
+          .map((x) => ({ id: nextCustomId(), text: x.text, checked: !!x.checked }));
+        setCustomChecklist(ensureTrailingEmpty(items));
+      }
       const rawSettings = localStorage.getItem(SETTINGS_KEY);
       const savedSettings = rawSettings ? JSON.parse(rawSettings) : null;
       if (savedSettings && typeof savedSettings === "object") {
@@ -780,6 +870,19 @@ export default function Home() {
       // Saving is best-effort; ignore failures.
     }
   }, [checklist, hydrated]);
+
+  // Save the user's own added checklist items (only the ones with text).
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      const toSave = customChecklist
+        .filter((it) => it.text.trim() !== "")
+        .map((it) => ({ text: it.text, checked: it.checked }));
+      localStorage.setItem(CHECKLIST_CUSTOM_KEY, JSON.stringify(toSave));
+    } catch {
+      // Saving is best-effort; ignore failures.
+    }
+  }, [customChecklist, hydrated]);
 
   // Save the settings on the device whenever they change.
   useEffect(() => {
@@ -870,11 +973,6 @@ export default function Home() {
     };
   }, []);
 
-  // Show the app title at the top for the first 10 seconds, then fade it away.
-  useEffect(() => {
-    const id = setTimeout(() => setTitleVisible(false), 10000);
-    return () => clearTimeout(id);
-  }, []);
 
   // After 20 seconds, gently offer a background sound (only if none is chosen
   // yet and the offer hasn't been shown before).
@@ -989,12 +1087,31 @@ export default function Home() {
     setChecklist((prev) => prev.map((v, i) => (i === index ? !v : v)));
   }
 
+  function changeCustomItem(id, text) {
+    setCustomChecklist((prev) =>
+      ensureTrailingEmpty(prev.map((it) => (it.id === id ? { ...it, text } : it)))
+    );
+  }
+
+  function toggleCustomItem(id) {
+    setCustomChecklist((prev) =>
+      prev.map((it) => (it.id === id ? { ...it, checked: !it.checked } : it))
+    );
+  }
+
+  function removeCustomItem(id) {
+    setCustomChecklist((prev) =>
+      ensureTrailingEmpty(prev.filter((it) => it.id !== id))
+    );
+  }
+
   function toggleSetting(id) {
     setSettings((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
   function startContraction() {
     setConfirmingDelete(false);
+    setTitleVisible(false); // hide the app title once she starts timing
     setElapsed(0);
     startRef.current = Date.now();
     intervalRef.current = setInterval(() => {
@@ -1085,6 +1202,10 @@ export default function Home() {
         onBack={() => setScreen("main")}
         bg={subBg}
         onQuestion={() => setScreen("contacts")}
+        customItems={customChecklist}
+        onCustomChange={changeCustomItem}
+        onCustomToggle={toggleCustomItem}
+        onCustomRemove={removeCustomItem}
       />
     );
   }
@@ -1803,6 +1924,32 @@ const styles = {
   checklistTextDone: {
     textDecoration: "line-through",
     color: "#5a8079",
+  },
+  customInput: {
+    flex: 1,
+    minWidth: 0,
+    border: "none",
+    background: "transparent",
+    outline: "none",
+    fontSize: "1.2rem",
+    fontWeight: 600,
+    color: "#2f5a53",
+  },
+  customRemove: {
+    flexShrink: 0,
+    width: "1.8rem",
+    height: "1.8rem",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "transparent",
+    border: "none",
+    borderRadius: "50%",
+    color: "#9a9a9a",
+    fontSize: "0.95rem",
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
   },
   settingsList: {
     listStyle: "none",
