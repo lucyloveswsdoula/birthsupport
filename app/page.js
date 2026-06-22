@@ -862,9 +862,9 @@ export default function Home() {
     };
   }, []);
 
-  // Show the app title at the top for the first minute, then fade it away.
+  // Show the app title at the top for the first 10 seconds, then fade it away.
   useEffect(() => {
-    const id = setTimeout(() => setTitleVisible(false), 60000);
+    const id = setTimeout(() => setTitleVisible(false), 10000);
     return () => clearTimeout(id);
   }, []);
 
