@@ -10,6 +10,11 @@ body {
   font-family: Georgia, "Times New Roman", Times, serif;
 }
 
+/* Make the whole app a touch smaller (most sizes use rem, so this scales them). */
+html {
+  font-size: 93%;
+}
+
 button,
 input,
 textarea {

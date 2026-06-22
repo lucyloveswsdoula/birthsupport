@@ -1341,23 +1341,16 @@ export default function Home() {
           </div>
         )}
 
-        {!isActive && (
+        {!isActive && history.length > 0 && (
           <div style={styles.restBlock}>
-            <p style={styles.restMessage}>
-              Rest now. Breathe slowly. You&apos;re doing beautifully.
+            <p style={styles.restLasted}>
+              Your last contraction lasted{" "}
+              {formatDuration(lastContraction.durationSec)}
             </p>
-            {history.length > 0 && (
-              <>
-                <p style={styles.restLasted}>
-                  Your last contraction lasted{" "}
-                  {formatDuration(lastContraction.durationSec)}
-                </p>
-                <p style={styles.restSince}>
-                  It&apos;s been {formatDuration(sinceSeconds)} since your last
-                  contraction
-                </p>
-              </>
-            )}
+            <p style={styles.restSince}>
+              It&apos;s been {formatDuration(sinceSeconds)} since your last
+              contraction
+            </p>
           </div>
         )}
 
