@@ -1240,10 +1240,13 @@ export default function Home() {
   const isActive = phase === ACTIVE;
   const lastContraction = history[0];
   const showHistory = phase !== ACTIVE && history.length > 0;
-  const sinceSeconds =
+  // Time since the last contraction ENDED (starts from 0 when End is tapped).
+  const lastEndTime =
     history.length > 0
-      ? Math.max(0, Math.floor((now - history[0].startTime) / 1000))
+      ? history[0].startTime + history[0].durationSec * 1000
       : 0;
+  const sinceSeconds =
+    history.length > 0 ? Math.max(0, Math.floor((now - lastEndTime) / 1000)) : 0;
 
   // Mom/Partner and Doula now look the same (the soft teal theme on every
   // screen). The roles are kept for a future price difference, not the look.
