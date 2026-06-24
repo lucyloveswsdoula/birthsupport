@@ -490,6 +490,7 @@ const VOICE_PROMPT_KEY = "birthsupport-voice-prompt-seen";
 const VOICE_OPTIONS = [
   { id: "none", label: "None" },
   { id: "kid-lucy", label: "Kid (Lucy)" },
+  { id: "young-adult-maryn", label: "Young adult (Maryn)" },
   { id: "mom-krystal", label: "Mom (Krystal)" },
   { id: "mom-lisa", label: "Mom (Lisa)" },
   { id: "mom-lori", label: "Mom (Lori)" },

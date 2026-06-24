@@ -1,8 +1,9 @@
 Affirmation voice recordings will go in this folder.
 
 Voices offered in the app right now:
-  - Kid (Lucy)        -> folder/id: kid-lucy
-  - Mom (Krystal)     -> folder/id: mom-krystal
+  - Kid (Lucy)            -> folder/id: kid-lucy
+  - Young adult (Maryn)   -> folder/id: young-adult-maryn
+  - Mom (Krystal)         -> folder/id: mom-krystal
   - Mom (Lisa)        -> folder/id: mom-lisa
   - Mom (Lori)        -> folder/id: mom-lori
   - Mom (Linda)       -> folder/id: mom-linda
