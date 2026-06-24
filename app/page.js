@@ -495,6 +495,7 @@ const VOICE_OPTIONS = [
   { id: "mom-lisa", label: "Mom (Lisa)" },
   { id: "mom-lori", label: "Mom (Lori)" },
   { id: "mom-linda", label: "Mom (Linda)" },
+  { id: "grandma-diana", label: "Grandma (Diana)" },
 ];
 
 // A collapsible Settings section: a title + the current choice + a down arrow;
