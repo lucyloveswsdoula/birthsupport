@@ -484,6 +484,18 @@ const SOUND_OPTIONS = [
   { id: "white-noise", label: "White noise", src: "/sounds/white-noise.mp3" },
 ];
 
+// Affirmation voices (recordings added later, in public/voices/). "None" = no voice.
+const VOICE_KEY = "birthsupport-voice";
+const VOICE_PROMPT_KEY = "birthsupport-voice-prompt-seen";
+const VOICE_OPTIONS = [
+  { id: "none", label: "None" },
+  { id: "kid-lucy", label: "Kid (Lucy)" },
+  { id: "mom-krystal", label: "Mom (Krystal)" },
+  { id: "mom-lisa", label: "Mom (Lisa)" },
+  { id: "mom-lori", label: "Mom (Lori)" },
+  { id: "mom-linda", label: "Mom (Linda)" },
+];
+
 // A collapsible Settings section: a title + the current choice + a down arrow;
 // tapping reveals the options. Reusable for role, sound, future voices, etc.
 function Collapsible({ title, value, children }) {
@@ -531,10 +543,13 @@ function SettingsScreen({
   onChangeRole,
   soundKey,
   onChangeSound,
+  voiceKey,
+  onChangeVoice,
   onQuestion,
 }) {
   const roleLabel = role === "doula" ? "Doula" : "Mom or Partner";
   const soundLabel = (SOUND_OPTIONS.find((s) => s.id === soundKey) || {}).label;
+  const voiceLabel = (VOICE_OPTIONS.find((v) => v.id === voiceKey) || {}).label;
   return (
     <main style={{ ...styles.checklistMain, background: bg }}>
       <button type="button" onClick={onBack} style={styles.backButton}>
@@ -607,6 +622,22 @@ function SettingsScreen({
         ))}
       </Collapsible>
 
+      <Collapsible title="Affirmation voice" value={voiceLabel}>
+        {VOICE_OPTIONS.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            onClick={() => onChangeVoice(v.id)}
+            style={{
+              ...styles.roleButton,
+              ...(voiceKey === v.id ? styles.roleButtonActive : {}),
+            }}
+          >
+            {v.label}
+          </button>
+        ))}
+      </Collapsible>
+
       <QuestionFooter onClick={onQuestion} />
     </main>
   );
@@ -663,7 +694,10 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false); // hamburger menu open?
   const [showSoundPrompt, setShowSoundPrompt] = useState(false); // "Want a background sound?"
   const [soundPromptSeen, setSoundPromptSeen] = useState(false); // already shown before?
+  const [showVoicePrompt, setShowVoicePrompt] = useState(false); // "What voice...?"
+  const [voicePromptSeen, setVoicePromptSeen] = useState(false); // already shown before?
   const [soundKey, setSoundKey] = useState("silence"); // background sound choice
+  const [voiceKey, setVoiceKey] = useState("none"); // affirmation voice choice
   const [affirmationIndex, setAffirmationIndex] = useState(0); // affirmation during contraction
   const [historyExpanded, setHistoryExpanded] = useState(false); // show all history rows?
   const [screen, setScreen] = useState("main"); // "main" | "breathing" | "contacts" | "checklist"
@@ -686,6 +720,10 @@ export default function Home() {
   soundKeyRef.current = soundKey;
   const soundPromptSeenRef = useRef(false); // latest "seen" value for the timer
   soundPromptSeenRef.current = soundPromptSeen;
+  const voiceKeyRef = useRef("none");
+  voiceKeyRef.current = voiceKey;
+  const voicePromptSeenRef = useRef(false);
+  voicePromptSeenRef.current = voicePromptSeen;
 
   // When the app opens, load any saved data from this phone.
   useEffect(() => {
@@ -807,6 +845,13 @@ export default function Home() {
       }
       if (localStorage.getItem(SOUND_PROMPT_KEY) === "1") {
         setSoundPromptSeen(true);
+      }
+      const savedVoice = localStorage.getItem(VOICE_KEY);
+      if (savedVoice && VOICE_OPTIONS.some((v) => v.id === savedVoice)) {
+        setVoiceKey(savedVoice);
+      }
+      if (localStorage.getItem(VOICE_PROMPT_KEY) === "1") {
+        setVoicePromptSeen(true);
       }
     } catch {
       // If anything is off, just start fresh.
@@ -973,12 +1018,14 @@ export default function Home() {
   }, []);
 
 
-  // After 10 seconds, gently offer a background sound (only if none is chosen
-  // yet and the offer hasn't been shown before).
+  // After 10 seconds, gently offer a background sound (and then, after that, an
+  // affirmation voice) — only if not chosen yet and not shown before.
   useEffect(() => {
     const id = setTimeout(() => {
       if (!soundPromptSeenRef.current && soundKeyRef.current === "silence") {
         setShowSoundPrompt(true);
+      } else if (!voicePromptSeenRef.current && voiceKeyRef.current === "none") {
+        setShowVoicePrompt(true);
       }
     }, 10000);
     return () => clearTimeout(id);
@@ -993,6 +1040,26 @@ export default function Home() {
       // Saving is best-effort; ignore failures.
     }
   }, [soundPromptSeen, hydrated]);
+
+  // Save the affirmation voice choice on the device.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(VOICE_KEY, voiceKey);
+    } catch {
+      // Saving is best-effort; ignore failures.
+    }
+  }, [voiceKey, hydrated]);
+
+  // Remember that the voice offer has been shown.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      if (voicePromptSeen) localStorage.setItem(VOICE_PROMPT_KEY, "1");
+    } catch {
+      // Saving is best-effort; ignore failures.
+    }
+  }, [voicePromptSeen, hydrated]);
 
   // Keep the phone screen awake while the app is open and visible (if enabled).
   useEffect(() => {
@@ -1067,15 +1134,34 @@ export default function Home() {
     setActiveAlert(null);
   }
 
+  function maybeShowVoicePrompt() {
+    if (!voicePromptSeenRef.current && voiceKeyRef.current === "none") {
+      setShowVoicePrompt(true);
+    }
+  }
+
   function dismissSoundPrompt() {
     setShowSoundPrompt(false);
     setSoundPromptSeen(true);
+    maybeShowVoicePrompt();
   }
 
   function pickSoundFromPrompt(id) {
     setSoundKey(id);
     setShowSoundPrompt(false);
     setSoundPromptSeen(true);
+    maybeShowVoicePrompt();
+  }
+
+  function dismissVoicePrompt() {
+    setShowVoicePrompt(false);
+    setVoicePromptSeen(true);
+  }
+
+  function pickVoiceFromPrompt(id) {
+    setVoiceKey(id);
+    setShowVoicePrompt(false);
+    setVoicePromptSeen(true);
   }
 
   function updateContact(id, field, value) {
@@ -1218,6 +1304,8 @@ export default function Home() {
         onChangeRole={setRole}
         soundKey={soundKey}
         onChangeSound={setSoundKey}
+        voiceKey={voiceKey}
+        onChangeVoice={setVoiceKey}
         onQuestion={() => setScreen("contacts")}
       />
     );
@@ -1294,6 +1382,34 @@ export default function Home() {
                   style={styles.promptSoundButton}
                 >
                   {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showVoicePrompt && (
+        <div style={styles.promptBackdrop}>
+          <div style={styles.promptCard}>
+            <button
+              type="button"
+              onClick={dismissVoicePrompt}
+              style={styles.promptClose}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <p style={styles.promptText}>What voice for your affirmations?</p>
+            <div style={styles.promptButtons}>
+              {VOICE_OPTIONS.filter((v) => v.id !== "none").map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => pickVoiceFromPrompt(v.id)}
+                  style={styles.promptSoundButton}
+                >
+                  {v.label}
                 </button>
               ))}
             </div>
