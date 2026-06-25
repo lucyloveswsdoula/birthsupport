@@ -718,6 +718,7 @@ export default function Home() {
   const intervalRef = useRef(null); // holds the running 1-second ticker
   const startRef = useRef(null); // when the current contraction began
   const audioRef = useRef(null); // background sound player
+  const voiceAudioRef = useRef(null); // affirmation voice player
   const soundKeyRef = useRef("silence"); // latest sound choice for event handlers
   soundKeyRef.current = soundKey;
   const soundPromptSeenRef = useRef(false); // latest "seen" value for the timer
@@ -982,6 +983,32 @@ export default function Home() {
     audio.play().catch(() => {});
   }, [soundKey, hydrated]);
 
+  // Play the chosen affirmation voice during a contraction. One recording per
+  // voice lives at /voices/<id>.mp3 (added later). It pauses between contractions
+  // and resumes next time; a missing file simply doesn't play.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!voiceAudioRef.current) {
+      voiceAudioRef.current = new Audio();
+      voiceAudioRef.current.loop = true;
+      voiceAudioRef.current.volume = 1.0; // clear, over the quieter background sound
+    }
+    const va = voiceAudioRef.current;
+    if (voiceKey === "none" || !settings.affirmations) {
+      va.pause();
+      return;
+    }
+    const src = `/voices/${voiceKey}.mp3`;
+    if (!va.src.endsWith(src)) {
+      va.src = src; // switching voice loads the new recording
+    }
+    if (phase === ACTIVE) {
+      va.play().catch(() => {});
+    } else {
+      va.pause();
+    }
+  }, [phase, voiceKey, settings.affirmations, hydrated]);
+
   // Browsers block audio until the user interacts; resume on the first tap.
   useEffect(() => {
     function resume() {
@@ -994,6 +1021,7 @@ export default function Home() {
     return () => {
       window.removeEventListener("pointerdown", resume);
       if (audioRef.current) audioRef.current.pause();
+      if (voiceAudioRef.current) voiceAudioRef.current.pause();
     };
   }, []);
 
