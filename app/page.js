@@ -463,7 +463,7 @@ function ChecklistScreen({
 const SETTINGS_KEY = "birthsupport-settings";
 const SETTINGS_DEFS = [
   { id: "cards", label: "Show partner support cards" },
-  { id: "affirmations", label: "Show affirmations during contractions" },
+  { id: "affirmations", label: "Show encouraging statements during contractions" },
   { id: "keepAwake", label: "Keep the screen awake" },
   { id: "alerts", label: "Show pattern alerts" },
 ];
@@ -624,7 +624,7 @@ function SettingsScreen({
         ))}
       </Collapsible>
 
-      <Collapsible title="Affirmation voice" value={voiceLabel}>
+      <Collapsible title="Encouraging statements voice" value={voiceLabel}>
         {VOICE_OPTIONS.map((v) => (
           <button
             key={v.id}
@@ -1433,7 +1433,7 @@ export default function Home() {
             >
               ✕
             </button>
-            <p style={styles.promptText}>What voice for your affirmations?</p>
+            <p style={styles.promptText}>What voice for your encouraging statements?</p>
             <div style={styles.promptButtons}>
               {VOICE_OPTIONS.filter((v) => v.id !== "none").map((v) => (
                 <button
